@@ -1,6 +1,7 @@
 [build]
   publish = "."
   functions = "functions"
+  command = "npm install" 
   
 # Redirects for shorter URLs
 [[redirects]]
