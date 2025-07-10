@@ -1,5 +1,6 @@
 [build]
   publish = "."
+  functions = "functions"
   
 # Redirects for shorter URLs
 [[redirects]]
