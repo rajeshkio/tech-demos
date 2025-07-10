@@ -9,7 +9,7 @@
 
 [[redirects]]
   from = "/k3s"
-  to = "/self-configuring-k3s/"
+  to = "/self-provisioning-proxmox/
   status = 301
 
 # Security headers
