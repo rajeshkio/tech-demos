@@ -704,7 +704,7 @@
         // Global stats API functions (shared with infrastructure demo)
         async function fetchStats() {
             try {
-                const response = await fetch(`${API_BASE}/stats`);
+                const response = await fetch(`${API_BASE}/coredns-autopath-stats`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 
@@ -737,7 +737,7 @@
         
         async function incrementStats() {
             try {
-                const response = await fetch(`${API_BASE}/stats`, {
+                const response = await fetch(`${API_BASE}/coredns-autopath-stats`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });

@@ -638,7 +638,7 @@
         // Secure API functions with improved timestamp handling
         async function fetchStats() {
             try {
-                const response = await fetch(`${API_BASE}/stats`);
+                const response = await fetch(`${API_BASE}/deployment-stats`);
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const data = await response.json();
                 
@@ -677,7 +677,7 @@
         
         async function incrementStats() {
             try {
-                const response = await fetch(`${API_BASE}/stats`, {
+                const response = await fetch(`${API_BASE}/deployment-stats`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
