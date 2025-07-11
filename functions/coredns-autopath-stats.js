@@ -14,7 +14,6 @@ if (!admin.apps.length) {
 const db = admin.firestore();
 
 exports.handler = async (event, context) => {
-  // CORS headers for GitHub Pages
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -50,7 +49,6 @@ exports.handler = async (event, context) => {
         const doc = await transaction.get(statsRef);
         
         if (!doc.exists) {
-          // Create document if it doesn't exist
           transaction.set(statsRef, {
             totalResolutions: 1,
             resolutionsToday: 1,
@@ -58,7 +56,6 @@ exports.handler = async (event, context) => {
             lastDayReset: new Date().toDateString()
           });
         } else {
-          // Check if we need to reset daily counter
           const data = doc.data();
           const today = new Date().toDateString();
           const resolutionsToday = data.lastDayReset === today ? data.resolutionsToday + 1 : 1;
@@ -72,7 +69,6 @@ exports.handler = async (event, context) => {
         }
       });
 
-      // Return updated stats
       const updated = await statsRef.get();
       return {
         statusCode: 200,
@@ -80,12 +76,6 @@ exports.handler = async (event, context) => {
         body: JSON.stringify(updated.data())
       };
     }
-
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
-    };
 
   } catch (error) {
     console.error('Function error:', error);

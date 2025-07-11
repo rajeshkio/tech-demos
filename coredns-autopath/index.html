@@ -175,6 +175,7 @@
             font-family: 'Courier New', monospace;
             display: flex;
             flex-direction: column;
+            max-height: 600px;
         }
         
         .terminal-header {
@@ -185,12 +186,12 @@
             color: #a0aec0;
             padding-bottom: 10px;
             border-bottom: 1px solid #2d3748;
+            flex-shrink: 0;
         }
         
         .terminal-content {
             flex: 1;
             overflow-y: auto;
-            max-height: 500px;
             padding-right: 8px;
         }
         
@@ -632,12 +633,6 @@
                 <a href="https://demos.learningdevops.com/" class="footer-link back">
                     ← Back to Demos
                 </a>
-                <!--a href="https://github.com/yourusername/coredns-autopath-demo" class="footer-link github" target="_blank">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                    </svg>
-                    Source Code
-                </a-->
                 <a href="https://www.linkedin.com/in/techwith-rajesh/" class="footer-link linkedin" target="_blank">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
@@ -668,11 +663,11 @@
         // Global stats tracking via secure Netlify function
         let usageStats = {
             totalResolutions: 0,
-            sessionsToday: 0,
+            resolutionsToday: 0,
             lastResolution: null
         };
         
-        // Auto-detect Netlify function endpoint (shared with infrastructure demo)
+        // Auto-detect Netlify function endpoint
         const isNetlify = window.location.hostname.includes('netlify.app');
         const API_BASE = isNetlify 
             ? `${window.location.origin}/.netlify/functions`
@@ -684,24 +679,8 @@
             internal: ['whoami', 'nginx', 'api'],
             invalid: ['nonexistent.local', 'invalid-domain.test']
         };
-        
-        // Elements
-        const defaultConfigBtn = document.getElementById('defaultConfig');
-        const autopathConfigBtn = document.getElementById('autopathConfig');
-        const domainInput = document.getElementById('domainInput');
-        const resolveBtn = document.getElementById('resolveBtn');
-        const resetBtn = document.getElementById('resetBtn');
-        const terminal = document.getElementById('terminal');
-        const configDisplay = document.getElementById('configText');
-        const terminalStatus = document.getElementById('terminalStatus');
-        
-        // Stats elements
-        const totalQueriesEl = document.getElementById('totalQueries');
-        const totalLatencyEl = document.getElementById('totalLatency');
-        const failedQueriesEl = document.getElementById('failedQueries');
-        const efficiencyEl = document.getElementById('efficiency');
 
-        // Global stats API functions (shared with infrastructure demo)
+        // Secure API functions for DNS resolution stats
         async function fetchStats() {
             try {
                 const response = await fetch(`${API_BASE}/coredns-autopath-stats`);
@@ -709,27 +688,29 @@
                 const data = await response.json();
                 
                 usageStats = {
-                    totalResolutions: data.totalDeployments || 0, // Reuse same counter
-                    sessionsToday: data.deploymentsToday || 0,
+                    totalResolutions: data.totalResolutions || 0,
+                    resolutionsToday: data.resolutionsToday || 0,
                     lastResolution: null
                 };
                 
                 // Handle Firebase timestamp conversion properly
-                if (data.lastDeployment) {
-                    if (data.lastDeployment._seconds) {
-                        usageStats.lastResolution = new Date(data.lastDeployment._seconds * 1000);
-                    } else if (data.lastDeployment.seconds) {
-                        usageStats.lastResolution = new Date(data.lastDeployment.seconds * 1000);
-                    } else if (typeof data.lastDeployment === 'string') {
-                        usageStats.lastResolution = new Date(data.lastDeployment);
+                if (data.lastResolution) {
+                    if (data.lastResolution._seconds) {
+                        usageStats.lastResolution = new Date(data.lastResolution._seconds * 1000);
+                    } else if (data.lastResolution.seconds) {
+                        usageStats.lastResolution = new Date(data.lastResolution.seconds * 1000);
+                    } else if (typeof data.lastResolution === 'string') {
+                        usageStats.lastResolution = new Date(data.lastResolution);
+                    } else if (data.lastResolution instanceof Date) {
+                        usageStats.lastResolution = data.lastResolution;
                     }
                 }
                 
                 updateUsageDisplay();
-                console.log('📡 Global stats loaded securely via Netlify function');
+                console.log('📡 DNS stats loaded securely via Netlify function');
                 return true;
             } catch (error) {
-                console.log('📱 Secure API unavailable, using localStorage fallback');
+                console.log('📱 Secure API unavailable, using localStorage fallback:', error);
                 loadLocalStats();
                 return false;
             }
@@ -746,27 +727,29 @@
                 const data = await response.json();
                 
                 usageStats = {
-                    totalResolutions: data.totalDeployments || 0,
-                    sessionsToday: data.deploymentsToday || 0,
+                    totalResolutions: data.totalResolutions || 0,
+                    resolutionsToday: data.resolutionsToday || 0,
                     lastResolution: null
                 };
                 
                 // Handle Firebase timestamp conversion properly
-                if (data.lastDeployment) {
-                    if (data.lastDeployment._seconds) {
-                        usageStats.lastResolution = new Date(data.lastDeployment._seconds * 1000);
-                    } else if (data.lastDeployment.seconds) {
-                        usageStats.lastResolution = new Date(data.lastDeployment.seconds * 1000);
-                    } else if (typeof data.lastDeployment === 'string') {
-                        usageStats.lastResolution = new Date(data.lastDeployment);
+                if (data.lastResolution) {
+                    if (data.lastResolution._seconds) {
+                        usageStats.lastResolution = new Date(data.lastResolution._seconds * 1000);
+                    } else if (data.lastResolution.seconds) {
+                        usageStats.lastResolution = new Date(data.lastResolution.seconds * 1000);
+                    } else if (typeof data.lastResolution === 'string') {
+                        usageStats.lastResolution = new Date(data.lastResolution);
+                    } else if (data.lastResolution instanceof Date) {
+                        usageStats.lastResolution = data.lastResolution;
                     }
                 }
                 
                 updateUsageDisplay();
-                console.log('📡 Global resolution count updated securely!');
+                console.log('📡 Global DNS resolution count updated securely!');
                 return true;
             } catch (error) {
-                console.log('📱 Secure API failed, using local increment');
+                console.log('📱 Secure API failed, using local increment:', error);
                 incrementLocalStats();
                 return false;
             }
@@ -782,7 +765,7 @@
             } else {
                 usageStats = {
                     totalResolutions: 0,
-                    sessionsToday: 0,
+                    resolutionsToday: 0,
                     lastResolution: null
                 };
             }
@@ -791,7 +774,7 @@
         
         function incrementLocalStats() {
             usageStats.totalResolutions++;
-            usageStats.sessionsToday++;
+            usageStats.resolutionsToday++;
             usageStats.lastResolution = new Date();
             localStorage.setItem('coreDnsUsageStats', JSON.stringify(usageStats));
             updateUsageDisplay();
@@ -799,7 +782,7 @@
         
         function updateUsageDisplay() {
             document.getElementById('totalResolutions').textContent = usageStats.totalResolutions.toLocaleString();
-            document.getElementById('sessionsToday').textContent = usageStats.sessionsToday;
+            document.getElementById('sessionsToday').textContent = usageStats.resolutionsToday;
             
             // Update connection status
             const connectionStatus = document.getElementById('connectionStatus');
@@ -834,6 +817,7 @@
         }
         
         function updateConfig() {
+            const configDisplay = document.getElementById('configText');
             if (isAutopath) {
                 configDisplay.innerHTML = `
                     autopath @kubernetes<br>
@@ -854,6 +838,7 @@
         }
         
         function addTerminalLine(text, className = 'text-gray') {
+            const terminal = document.getElementById('terminal');
             const line = document.createElement('div');
             line.className = `terminal-line ${className}`;
             line.textContent = text;
@@ -1036,17 +1021,18 @@
         }
         
         function updateStats(queries, failed, latency) {
-            totalQueriesEl.textContent = queries;
-            totalLatencyEl.textContent = Math.round(latency) + 'ms';
-            failedQueriesEl.textContent = failed;
+            document.getElementById('totalQueries').textContent = queries;
+            document.getElementById('totalLatency').textContent = Math.round(latency) + 'ms';
+            document.getElementById('failedQueries').textContent = failed;
             
             const efficiency = queries > 0 ? Math.round(((queries - failed) / queries) * 100) : 0;
-            efficiencyEl.textContent = efficiency + '%';
+            document.getElementById('efficiency').textContent = efficiency + '%';
         }
         
         async function resolveDomain() {
             if (isResolving) return;
             
+            const domainInput = document.getElementById('domainInput');
             const domain = domainInput.value.trim();
             if (!domain) {
                 addTerminalLine('❌ Please enter a domain name', 'text-red');
@@ -1057,6 +1043,9 @@
             stopAutoDemo();
             
             isResolving = true;
+            const resolveBtn = document.getElementById('resolveBtn');
+            const terminalStatus = document.getElementById('terminalStatus');
+            
             resolveBtn.disabled = true;
             resolveBtn.textContent = '⏳ Resolving...';
             terminalStatus.textContent = 'Resolving...';
@@ -1112,6 +1101,7 @@
             stopAutoDemo();
             
             // Clear terminal
+            const terminal = document.getElementById('terminal');
             terminal.innerHTML = `
                 <div class="terminal-line text-gray">💡 Configure CoreDNS and click "Resolve DNS" to see the magic happen!</div>
                 <div class="terminal-line text-gray">🔧 Toggle between default and autopath configurations to compare performance.</div>
@@ -1127,7 +1117,7 @@
             // Reset query count
             queryCount = 0;
             
-            terminalStatus.textContent = 'Ready';
+            document.getElementById('terminalStatus').textContent = 'Ready';
         }
         
         function switchConfig(toAutopath) {
@@ -1137,6 +1127,9 @@
             isAutopath = toAutopath;
             
             // Update button states
+            const defaultConfigBtn = document.getElementById('defaultConfig');
+            const autopathConfigBtn = document.getElementById('autopathConfig');
+            
             if (toAutopath) {
                 autopathConfigBtn.classList.add('active');
                 defaultConfigBtn.classList.remove('active');
@@ -1177,7 +1170,7 @@
                 // Switch config and run demo
                 switchConfig(!isAutopath);
                 setTimeout(() => {
-                    domainInput.value = 'api.github.com';
+                    document.getElementById('domainInput').value = 'api.github.com';
                     resolveDomain();
                 }, 1000);
                 
@@ -1185,35 +1178,7 @@
             }
         }
         
-        // Event listeners
-        defaultConfigBtn.addEventListener('click', () => switchConfig(false));
-        autopathConfigBtn.addEventListener('click', () => switchConfig(true));
-        resolveBtn.addEventListener('click', resolveDomain);
-        resetBtn.addEventListener('click', resetDemo);
-        
-        // Enter key support for domain input
-        domainInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !isResolving) {
-                resolveDomain();
-            }
-        });
-        
-        // Suggest domains on focus
-        domainInput.addEventListener('focus', () => {
-            updateActivity();
-            if (!domainInput.value) {
-                const suggestions = ['google.com', 'github.com', 'whoami', 'api.example.com'];
-                const randomSuggestion = suggestions[Math.floor(Math.random() * suggestions.length)];
-                domainInput.placeholder = randomSuggestion;
-            }
-        });
-        
-        // Track user activity to stop auto-demo
-        ['click', 'keypress', 'focus', 'scroll'].forEach(event => {
-            document.addEventListener(event, updateActivity);
-        });
-        
-        // Initialize demo
+        // Initialize demo and set up event listeners
         document.addEventListener('DOMContentLoaded', async function() {
             console.log('🔒 Secure CoreDNS demo initialized');
             
@@ -1221,6 +1186,35 @@
             await fetchStats();
             
             updateConfig();
+            
+            // Event listeners
+            document.getElementById('defaultConfig').addEventListener('click', () => switchConfig(false));
+            document.getElementById('autopathConfig').addEventListener('click', () => switchConfig(true));
+            document.getElementById('resolveBtn').addEventListener('click', resolveDomain);
+            document.getElementById('resetBtn').addEventListener('click', resetDemo);
+            
+            // Enter key support for domain input
+            document.getElementById('domainInput').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !isResolving) {
+                    resolveDomain();
+                }
+            });
+            
+            // Suggest domains on focus
+            document.getElementById('domainInput').addEventListener('focus', () => {
+                updateActivity();
+                const domainInput = document.getElementById('domainInput');
+                if (!domainInput.value) {
+                    const suggestions = ['google.com', 'github.com', 'whoami', 'api.example.com'];
+                    const randomSuggestion = suggestions[Math.floor(Math.random() * suggestions.length)];
+                    domainInput.placeholder = randomSuggestion;
+                }
+            });
+            
+            // Track user activity to stop auto-demo
+            ['click', 'keypress', 'focus', 'scroll'].forEach(event => {
+                document.addEventListener(event, updateActivity);
+            });
             
             // Add welcome message
             setTimeout(() => {
