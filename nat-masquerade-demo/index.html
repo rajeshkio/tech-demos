@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux NAT Masquerade Simulator</title>
+    <style>
+        :root {
+            --primary-color: #3498db;
+            --secondary-color: #2c3e50;
+            --success-color: #2ecc71;
+            --error-color: #e74c3c;
+            --warning-color: #f1c40f;
+            --light-gray: #ecf0f1;
+            --dark-gray: #34495e;
+            --background-color: #f4f7f9;
+            --font-family: 'Inter', sans-serif;
+            --monospace-font: 'Fira Code', 'JetBrains Mono', monospace;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Fira+Code&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--background-color);
+            color: var(--dark-gray);
+            padding: 2rem;
+            display: grid;
+            place-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1600px;
+            background-color: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: var(--secondary-color);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+            padding: 2rem;
+        }
+
+        .simulation-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .network-diagram {
+            background-color: var(--light-gray);
+            border-radius: 12px;
+            padding: 2rem;
+            position: relative;
+            min-height: 400px;
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .subnet {
+            border: 2px solid;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .subnet-a { border-color: var(--primary-color); }
+        .subnet-b { border-color: var(--error-color); }
+
+        .device {
+            padding: 1rem;
+            border-radius: 8px;
+            color: white;
+            margin-top: 1rem;
+        }
+
+        .host { background-color: var(--primary-color); }
+        .server { background-color: var(--error-color); }
+
+        .gateway {
+            background: var(--warning-color);
+            color: var(--secondary-color);
+            padding: 1.5rem;
+            border-radius: 50%;
+            width: 120px;
+            height: 120px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            font-weight: 700;
+            z-index: 2;
+        }
+
+        .logs-panel, .control-panel {
+            background-color: var(--secondary-color);
+            color: var(--light-gray);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .panel-header {
+            font-size: 1.2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--dark-gray);
+            padding-bottom: 0.5rem;
+        }
+
+        .log-area {
+            height: 250px;
+            overflow-y: auto;
+            font-family: var(--monospace-font);
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .log-timestamp { opacity: 0.7; margin-right: 0.5rem; }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            width: 100%;
+            margin-bottom: 0.5rem;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .btn:hover:not(:disabled) {
+            background-color: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background-color: var(--dark-gray);
+            cursor: not-allowed;
+        }
+        
+        .config-section label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+
+        .iptables-rules {
+            margin-top: 1.5rem;
+            background-color: #1e2b37;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .rule {
+            font-family: var(--monospace-font);
+            background-color: var(--dark-gray);
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            transition: opacity 0.3s;
+        }
+        
+        .rule.disabled {
+            opacity: 0.4;
+        }
+
+        .packet {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            z-index: 10;
+            display: none;
+            transition: all 1s ease-in-out;
+        }
+
+        .packet-info {
+            position: absolute;
+            display: none;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-family: var(--monospace-font);
+            font-size: 0.8rem;
+            white-space: pre;
+            z-index: 11;
+            transition: all 1s ease-in-out;
+        }
+
+        .usage-stats {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 13px;
+            color: #4a5568;
+        }
+        
+        .usage-stats .highlight {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .footer {
+            padding: 20px 30px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .footer-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #4a5568;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .footer-link:hover {
+            background: #edf2f7;
+            color: #2d3748;
+            transform: translateY(-1px);
+        }
+        
+        .footer-link.linkedin:hover {
+            background: #0077b5;
+            color: white;
+        }
+        
+        .footer-link.back:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .footer-link.blog:hover {
+            background: #f56565;
+            color: white;
+        }
+        
+        .footer-credits {
+            font-size: 13px;
+            color: #718096;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Linux NAT Masquerade Simulator</h1>
+            <p>An interactive tool to visualize network address translation.</p>
+        </div>
+        <div class="main-content">
+            <div class="simulation-panel">
+                <div class="network-diagram" id="networkDiagram">
+                    <div class="subnet subnet-a">
+                        <h3>Subnet A</h3>
+                        <p>192.168.1.0/24</p>
+                        <div class="device host">
+                            <strong>Host (enp2s0)</strong>
+                            <p>192.168.1.100</p>
+                        </div>
+                    </div>
+                    <div class="gateway">
+                        <strong>Gateway</strong>
+                        <p>Router</p>
+                    </div>
+                    <div class="subnet subnet-b">
+                        <h3>Subnet B</h3>
+                        <p>10.0.0.0/24</p>
+                        <div class="device server">
+                            <strong>Server (enp1s0)</strong>
+                            <p>10.0.0.50</p>
+                        </div>
+                    </div>
+                    <div class="packet" id="packet"></div>
+                    <div class="packet-info" id="packetInfo"></div>
+                </div>
+                <div class="logs-panel">
+                    <h3 class="panel-header">Simulation Logs</h3>
+                    <div class="log-area" id="logArea"></div>
+                </div>
+            </div>
+            <div class="control-panel">
+                <h3 class="panel-header">Controls</h3>
+                <button class="btn" onclick="runSimulation(false)">Ping without Masquerade</button>
+                <button class="btn" onclick="runSimulation(true)">Ping with Masquerade</button>
+                <button class="btn" onclick="clearLogs()">Clear Logs</button>
+                
+                <div class="config-section" style="margin-top: 1.5rem;">
+                    <h4 class="panel-header">Configuration</h4>
+                    <label>
+                        <input type="checkbox" id="ipForwarding" checked> IP Forwarding
+                    </label>
+                    <label>
+                        <input type="checkbox" id="masquerade"> Masquerade
+                    </label>
+                </div>
+
+                <div class="iptables-rules">
+                    <h4 class="panel-header" style="border: none; margin: 0;">Current iptables Rules</h4>
+                    <div class="rule" id="forwardRule1">FORWARD -i enp2s0 -o enp1s0 -j ACCEPT</div>
+                    <div class="rule" id="forwardRule2">FORWARD -i enp1s0 -o enp2s0 -j ACCEPT</div>
+                    <div class="rule" id="masqueradeRule">POSTROUTING -o enp1s0 -j MASQUERADE</div>
+                </div>
+            </div>
+        </div>
+         <div class="usage-stats">
+            <span id="connectionStatus">🔄 Connecting to global stats...</span> •
+            Total Simulations: <span class="highlight" id="totalSimulations">0</span>
+            • Simulations Today: <span class="highlight" id="simulationsToday">0</span>
+            • Success Rate: <span class="highlight" id="successRate">0%</span>
+            • Last Simulation: <span class="highlight" id="lastSimulation">Never</span>
+        </div>
+        <div class="footer">
+            <div class="footer-links">
+                <a href="https://demos.learningdevops.com/" class="footer-link back">
+                    ← Back to Demos
+                </a>
+                <a href="https://www.linkedin.com/in/techwith-rajesh/" class="footer-link linkedin" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                    LinkedIn
+                </a>
+                <a href="https://medium.com/@rk90229/what-is-ip-masquerade-a-simple-explanation-of-this-powerful-nat-feature-445eecca43e8" class="footer-link blog" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    Blog Article
+                </a>
+            </div>
+            <div class="footer-credits">
+                Built with Linux • NAT • iptables • Netlify
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const logArea = document.getElementById('logArea');
+        const packet = document.getElementById('packet');
+        const packetInfo = document.getElementById('packetInfo');
+        const networkDiagram = document.getElementById('networkDiagram');
+        const ipForwardingCheck = document.getElementById('ipForwarding');
+        const masqueradeCheck = document.getElementById('masquerade');
+        const forwardRule1 = document.getElementById('forwardRule1');
+        const forwardRule2 = document.getElementById('forwardRule2');
+        const masqueradeRule = document.getElementById('masqueradeRule');
+
+        // State & Constants
+        let isRunning = false;
+        const HOST_IP = '192.168.1.100';
+        const SERVER_IP = '10.0.0.50';
+        const GATEWAY_PUBLIC_IP = '88.22.11.3';
+        const API_BASE = '/.netlify/functions';
+
+        // --- Core Functions ---
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logLine = document.createElement('div');
+            const typeColors = {
+                error: '#e74c3c', success: '#2ecc71',
+                warning: '#f1c40f', header: '#3498db'
+            };
+            logLine.style.color = typeColors[type] || 'inherit';
+            logLine.innerHTML = `<span class="log-timestamp">${timestamp}</span><span>${message}</span>`;
+            logArea.appendChild(logLine);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function clearLogs() {
+            logArea.innerHTML = '';
+            log('Logs cleared.');
+        }
+
+        function updateRulesUI() {
+            forwardRule1.classList.toggle('disabled', !ipForwardingCheck.checked);
+            forwardRule2.classList.toggle('disabled', !ipForwardingCheck.checked);
+            masqueradeRule.classList.toggle('disabled', !masqueradeCheck.checked);
+        }
+
+        async function animatePacket(startEl, endEl, color, sourceIp, destIp) {
+            const containerRect = networkDiagram.getBoundingClientRect();
+            const startRect = startEl.getBoundingClientRect();
+            const endRect = endEl.getBoundingClientRect();
+
+            const startX = startRect.left + startRect.width / 2 - containerRect.left;
+            const startY = startRect.top + startRect.height / 2 - containerRect.top;
+            const endX = endRect.left + endRect.width / 2 - containerRect.left;
+            const endY = endRect.top + endRect.height / 2 - containerRect.top;
+            
+            packet.style.backgroundColor = color;
+            packet.style.left = `${startX - 10}px`;
+            packet.style.top = `${startY - 10}px`;
+            packetInfo.innerHTML = `SRC: ${sourceIp}<br>DST: ${destIp}`;
+            packetInfo.style.left = `${startX + 15}px`;
+            packetInfo.style.top = `${startY - 40}px`;
+            
+            packet.style.display = 'block';
+            packetInfo.style.display = 'block';
+            
+            await new Promise(resolve => setTimeout(resolve, 50));
+
+            const transformValue = `translate(${endX - startX}px, ${endY - startY}px)`;
+            packet.style.transform = transformValue;
+            packetInfo.style.transform = transformValue;
+            
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
+            packet.style.display = 'none';
+            packetInfo.style.display = 'none';
+            packet.style.transform = 'translate(0, 0)';
+            packetInfo.style.transform = 'translate(0, 0)';
+        }
+        
+        // --- Stats Functions ---
+        async function fetchStats() {
+            try {
+                const response = await fetch(`${API_BASE}/masquerade-nat-stats`);
+                if (!response.ok) throw new Error(`API Error: ${response.status}`);
+                const data = await response.json();
+                updateUsageDisplay(data);
+            } catch (error) {
+                console.error("Failed to fetch stats:", error);
+                document.getElementById('connectionStatus').textContent = '⚠️ Stats offline';
+            }
+        }
+
+        async function incrementStats(isSuccess, usedMasquerade) {
+            try {
+                await fetch(`${API_BASE}/masquerade-nat-stats`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ success: isSuccess, withMasquerade: usedMasquerade })
+                });
+                await fetchStats(); // Refresh stats after incrementing
+            } catch (error) {
+                console.error("Failed to increment stats:", error);
+            }
+        }
+        
+        function updateUsageDisplay(stats) {
+            document.getElementById('connectionStatus').innerHTML = '🔒 <strong>Global Stats</strong>';
+            document.getElementById('totalSimulations').textContent = stats.totalSimulations?.toLocaleString() || 0;
+            document.getElementById('simulationsToday').textContent = stats.simulationsToday || 0;
+            
+            const totalPings = (stats.successfulPings || 0) + (stats.failedPings || 0);
+            const successRate = totalPings > 0 ? Math.round(((stats.successfulPings || 0) / totalPings) * 100) : 0;
+            document.getElementById('successRate').textContent = `${successRate}%`;
+
+            if (stats.lastSimulation) {
+                const lastTime = new Date(stats.lastSimulation.seconds ? stats.lastSimulation.seconds * 1000 : stats.lastSimulation._seconds * 1000);
+                const now = new Date();
+                const diffMinutes = Math.floor((now - lastTime) / 60000);
+                
+                let timeText = 'Never';
+                if (diffMinutes < 1) timeText = 'Just now';
+                else if (diffMinutes < 60) timeText = `${diffMinutes}m ago`;
+                else if (diffMinutes < 1440) timeText = `${Math.floor(diffMinutes / 60)}h ago`;
+                else timeText = lastTime.toLocaleDateString();
+
+                document.getElementById('lastSimulation').textContent = timeText;
+            } else {
+                 document.getElementById('lastSimulation').textContent = 'Never';
+            }
+        }
+
+        // --- Main Simulation Logic ---
+        async function runSimulation(useMasquerade) {
+            if (isRunning) return;
+            isRunning = true;
+            document.querySelectorAll('.btn').forEach(b => b.disabled = true);
+
+            masqueradeCheck.checked = useMasquerade;
+            updateRulesUI();
+
+            const ipForwardingEnabled = ipForwardingCheck.checked;
+            const masqueradeEnabled = masqueradeCheck.checked;
+            const host = document.querySelector('.host');
+            const gateway = document.querySelector('.gateway');
+            const server = document.querySelector('.server');
+            let isSuccess = false;
+
+            log('--- Starting Simulation ---', 'header');
+            log(`Masquerade: ${masqueradeEnabled ? 'Enabled' : 'Disabled'}`);
+
+            if (!ipForwardingEnabled) {
+                log('Ping failed: IP forwarding is disabled.', 'error');
+            } else {
+                log(`Host (${HOST_IP}) sends packet to Server (${SERVER_IP}).`);
+                await animatePacket(host, gateway, 'var(--primary-color)', HOST_IP, SERVER_IP);
+
+                const outgoingSourceIp = masqueradeEnabled ? GATEWAY_PUBLIC_IP : HOST_IP;
+                if (masqueradeEnabled) {
+                    log(`Gateway performs NAT. Source IP rewritten to ${GATEWAY_PUBLIC_IP}.`, 'warning');
+                }
+                log('Gateway forwards packet to Server.');
+                await animatePacket(gateway, server, 'var(--primary-color)', outgoingSourceIp, SERVER_IP);
+                log(`Server (${SERVER_IP}) receives packet from ${outgoingSourceIp}.`);
+
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                if (masqueradeEnabled) {
+                    isSuccess = true;
+                    log(`Server replies to Gateway (${GATEWAY_PUBLIC_IP}).`);
+                    await animatePacket(server, gateway, 'var(--success-color)', SERVER_IP, GATEWAY_PUBLIC_IP);
+                    log('Gateway performs reverse NAT, rewriting destination to original host.');
+                    await animatePacket(gateway, host, 'var(--success-color)', SERVER_IP, HOST_IP);
+                    log('Host receives the reply. Ping successful!', 'success');
+                } else {
+                    isSuccess = false;
+                    log(`Server tries to reply to private Host IP (${HOST_IP}).`, 'error');
+                    log('Reply is dropped (asymmetric routing). Ping failed.', 'error');
+                }
+            }
+
+            log('--- Simulation Ended ---', 'header');
+            await incrementStats(isSuccess, masqueradeEnabled);
+
+            isRunning = false;
+            document.querySelectorAll('.btn').forEach(b => b.disabled = false);
+        }
+
+        // --- Event Listeners & Initializer ---
+        ipForwardingCheck.addEventListener('change', updateRulesUI);
+        masqueradeCheck.addEventListener('change', updateRulesUI);
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            updateRulesUI();
+            fetchStats();
+            log('Simulator initialized.');
+        });
+    </script>
+</body>
+</html>
