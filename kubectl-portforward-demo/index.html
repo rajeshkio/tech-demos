@@ -3,8 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>kubectl port-forward Demo</title>
+    <title>Interactive kubectl port-forward Demo</title>
+    <meta name="description" content="An interactive simulation that demystifies the network flow of kubectl port-forward from your browser to a Kubernetes pod.">
+    
     <style>
+        :root {
+            --primary-color: #4A90E2;
+            --secondary-color: #2c3e50;
+            --success-color: #50E3C2;
+            --error-color: #E35050;
+            --warning-color: #F8E71C;
+            --bg-color: #f4f7f9;
+            --panel-bg: #FFFFFF;
+            --terminal-bg: #1e2b37;
+            --text-dark: #333;
+            --text-light: #ecf0f1;
+            --border-color: #e2e8f0;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,981 +30,491 @@
         }
 
         body {
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-family: var(--font-sans);
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-            color: #333;
+            color: var(--text-dark);
+            padding: 2rem;
         }
 
         .container {
             max-width: 1400px;
-            margin: 0 auto;
-            background: rgba(255, 255, 255, 0.95);
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            margin: auto;
+            background: var(--bg-color);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
-
-        .header {
+        
+        .page-header {
             text-align: center;
-            margin-bottom: 30px;
+            padding: 2.5rem;
+            background: var(--panel-bg);
+            border-bottom: 1px solid var(--border-color);
         }
 
-        .header h1 {
-            color: #2c3e50;
-            font-size: 2.5em;
-            margin-bottom: 10px;
+        .page-header h1 {
+            font-size: 2.5rem;
+            color: var(--secondary-color);
+            margin-bottom: 0.5rem;
         }
 
-        .header p {
+        .page-header p {
+            font-size: 1.1rem;
             color: #7f8c8d;
-            font-size: 1.1em;
         }
 
-        .demo-section {
-            margin-bottom: 30px;
-            background: #f8f9fa;
-            border-radius: 15px;
-            padding: 25px;
-            border-left: 5px solid #3498db;
+        .main-content {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 2rem;
+            padding: 2rem;
         }
 
-        .demo-section h3 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-            font-size: 1.3em;
+        .simulation-column, .controls-column {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+
+        .panel-header {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--secondary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         .network-diagram {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            background: #ecf0f1;
-            padding: 20px;
-            border-radius: 10px;
-            margin: 20px 0;
-            position: relative;
+            justify-content: space-between;
+            padding: 1rem 0;
         }
 
         .network-node {
-            background: white;
-            border: 2px solid #3498db;
-            border-radius: 10px;
-            padding: 15px;
             text-align: center;
-            min-width: 120px;
+            flex-shrink: 0;
+            transition: transform 0.3s ease;
+        }
+        
+        .node-icon {
+            font-size: 2.5rem;
+            line-height: 1;
+        }
+
+        .node-label {
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        .node-sublabel {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+        }
+        
+        .network-node.active .node-icon {
+            animation: bounce 0.6s ease;
+        }
+        
+        @keyframes bounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        .connection {
+            flex-grow: 1;
+            height: 4px;
+            background-color: var(--border-color);
             position: relative;
         }
-
-        .network-node.active {
-            background: #3498db;
-            color: white;
-            transform: scale(1.05);
-            transition: all 0.3s ease;
-        }
-
-        .connection-line {
-            flex: 1;
-            height: 3px;
-            background: #bdc3c7;
-            margin: 0 10px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .connection-line.active {
-            background: #e74c3c;
-        }
-
-        .data-flow {
+        
+        .connection svg {
             position: absolute;
-            top: 0;
-            left: -20px;
-            width: 20px;
-            height: 100%;
-            background: #f39c12;
-            border-radius: 3px;
-            animation: flow 2s linear infinite;
-            opacity: 0;
+            top: -8px;
+            left: 0;
+            width: 100%;
+            height: 20px;
+            overflow: visible;
         }
 
-        .connection-line.active .data-flow {
+        .data-flow-path {
+            stroke-dasharray: 8 8;
+            stroke-width: 4;
+            stroke-linecap: round;
+            opacity: 0;
+            animation: flow 1s linear infinite;
+        }
+        
+        .connection.active .data-flow-path {
             opacity: 1;
         }
+        
+        .forward-flow { stroke: var(--primary-color); }
+        .backward-flow { stroke: var(--success-color); animation-direction: reverse; }
 
         @keyframes flow {
-            0% { left: -20px; }
-            100% { left: 100%; }
+            to { stroke-dashoffset: -32; }
         }
 
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95rem;
+            font-weight: 600;
+            transition: all 0.2s ease;
+        }
+        
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .btn.danger { background: var(--error-color); }
+        .btn.success { background: var(--success-color); }
+
+        .status-list .status-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .status-list .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .status-value {
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        .status-value.connected { color: var(--success-color); }
+        .status-value.disconnected { color: var(--error-color); }
+
         .terminal {
-            background: #2c3e50;
-            color: #ecf0f1;
-            padding: 20px;
-            border-radius: 10px;
-            font-family: 'Monaco', monospace;
-            margin: 15px 0;
-            position: relative;
-            overflow: hidden;
+            background: var(--terminal-bg);
+            border-radius: 8px;
+            padding: 1rem;
+            color: var(--text-light);
+            font-family: var(--font-mono);
         }
 
         .terminal-header {
             display: flex;
             align-items: center;
-            margin-bottom: 15px;
-            padding-bottom: 10px;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1rem;
             border-bottom: 1px solid #34495e;
         }
-
-        .terminal-dots {
-            display: flex;
-            gap: 5px;
-            margin-right: 15px;
-        }
-
-        .dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-        }
-
-        .dot.red { background: #e74c3c; }
-        .dot.yellow { background: #f39c12; }
-        .dot.green { background: #27ae60; }
-
-        .terminal-title {
-            color: #bdc3c7;
-            font-size: 0.9em;
-        }
+        
+        .terminal-dots { display: flex; gap: 6px; }
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .dot.red { background: #ff5f56; }
+        .dot.yellow { background: #ffbd2e; }
+        .dot.green { background: #27c93f; }
 
         .terminal-content {
-            line-height: 1.6;
-        }
-
-        .prompt {
-            color: #27ae60;
-        }
-
-        .command {
-            color: #3498db;
-        }
-
-        .output {
-            color: #ecf0f1;
-            margin: 5px 0;
-        }
-
-        .error {
-            color: #e74c3c;
-        }
-
-        .success {
-            color: #27ae60;
-        }
-
-        .warning {
-            color: #f39c12;
-        }
-
-        .controls {
-            display: flex;
-            gap: 15px;
-            margin: 20px 0;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            background: #3498db;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn:hover {
-            background: #2980b9;
-            transform: translateY(-2px);
-        }
-
-        .btn:active {
-            transform: translateY(0);
-        }
-
-        .btn.danger {
-            background: #e74c3c;
-        }
-
-        .btn.danger:hover {
-            background: #c0392b;
-        }
-
-        .btn.success {
-            background: #27ae60;
-        }
-
-        .btn.success:hover {
-            background: #219a52;
-        }
-
-        .status-panel {
-            background: #34495e;
-            color: white;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 15px 0;
-        }
-
-        .status-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin: 8px 0;
-            padding: 5px 0;
-            border-bottom: 1px solid #4a5f7a;
-        }
-
-        .status-item:last-child {
-            border-bottom: none;
-        }
-
-        .status-value {
-            font-weight: bold;
-        }
-
-        .status-value.connected {
-            color: #27ae60;
-        }
-
-        .status-value.disconnected {
-            color: #e74c3c;
-        }
-
-        .logs-panel {
-            max-height: 300px;
+            height: 250px;
             overflow-y: auto;
-            background: #2c3e50;
-            color: #ecf0f1;
-            padding: 15px;
-            border-radius: 10px;
-            font-family: 'Monaco', monospace;
-            font-size: 0.9em;
-        }
-
-        .log-entry {
-            margin: 3px 0;
-            padding: 2px 0;
-        }
-
-        .log-timestamp {
-            color: #95a5a6;
-        }
-
-        .log-level {
-            font-weight: bold;
-            margin: 0 10px;
-        }
-
-        .log-level.info {
-            color: #3498db;
-        }
-
-        .log-level.warn {
-            color: #f39c12;
-        }
-
-        .log-level.error {
-            color: #e74c3c;
-        }
-
-        .troubleshooting {
-            background: #fffbf0;
-            border: 2px solid #f39c12;
-            border-radius: 10px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-
-        .troubleshooting h4 {
-            color: #d68910;
-            margin-bottom: 10px;
-        }
-
-        .command-examples {
-            background: #f8f9fa;
-            border-radius: 8px;
-            padding: 15px;
-            margin: 10px 0;
-        }
-
-        .command-examples code {
-            background: #e9ecef;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Monaco', monospace;
-        }
-
-        .footer {
-            padding: 20px 30px;
-            background: #f8fafc;
-            border-top: 1px solid #e2e8f0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
+            line-height: 1.6;
+            font-size: 0.9rem;
         }
         
-        .footer-links {
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-        
-        .footer-link {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px 16px;
-            border-radius: 6px;
-            text-decoration: none;
-            color: #4a5568;
-            transition: all 0.2s;
-            font-weight: 500;
-        }
-        
-        .footer-link:hover {
-            background: #edf2f7;
-            color: #2d3748;
-            transform: translateY(-1px);
-        }
-        
-        .footer-link.github:hover {
-            background: #24292e;
-            color: white;
-        }
-        
-        .footer-link.linkedin:hover {
-            background: #0077b5;
-            color: white;
-        }
-        
-        .footer-link.back:hover {
-            background: #667eea;
-            color: white;
-        }
-        
-        .footer-link.blog:hover {
-            background: #f56565;
-            color: white;
-        }
-        
-        .footer-credits {
-            font-size: 13px;
-            color: #718096;
-        }
+        .terminal-line .prompt { color: var(--success-color); }
+        .terminal-line .command { color: #87CEFA; }
+        .terminal-line .output.success { color: var(--success-color); }
+        .terminal-line .output.error { color: var(--error-color); }
+        .terminal-line .output.warning { color: var(--warning-color); }
 
-        .usage-stats {
-            padding: 15px 20px;
-            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
-            border-top: 1px solid #e2e8f0;
-            text-align: center;
-            font-size: 13px;
-            color: #4a5568;
-        }
-        
-        @media (max-width: 768px) {
-            .network-diagram {
-                flex-direction: column;
-                gap: 15px;
-            }
-
-            .connection-line {
-                width: 3px;
-                height: 30px;
-                margin: 10px 0;
-            }
-
-            .controls {
-                justify-content: center;
-            }
-            
-            .footer {
-                flex-direction: column;
-                text-align: center;
-            }
-            
-            .footer-links {
-                justify-content: center;
+        @media (max-width: 1024px) {
+            .main-content {
+                grid-template-columns: 1fr;
             }
         }
     </style>
 </head>
 <body>
+
     <div class="container">
-        <div class="header">
-            <h1>kubectl port-forward Interactive Demo</h1>
-            <p>Explore how Kubernetes port-forwarding creates secure tunnels from your laptop to pods</p>
-        </div>
+        <header class="page-header">
+            <h1>kubectl port-forward Deep Dive</h1>
+            <p>An interactive simulation of the complete network flow.</p>
+        </header>
 
-        <div class="demo-section">
-            <h3>🌐 Network Flow Visualization</h3>
-            <div class="network-diagram" id="networkDiagram">
-                <div class="network-node" id="browser">
-                    <strong>Your Browser</strong><br>
-                    <small>localhost:8080</small>
-                </div>
-                <div class="connection-line" id="conn1">
-                    <div class="data-flow"></div>
-                </div>
-                <div class="network-node" id="kubectl">
-                    <strong>kubectl</strong><br>
-                    <small>Local Proxy</small>
-                </div>
-                <div class="connection-line" id="conn2">
-                    <div class="data-flow"></div>
-                </div>
-                <div class="network-node" id="apiserver">
-                    <strong>API Server</strong><br>
-                    <small>WebSocket</small>
-                </div>
-                <div class="connection-line" id="conn3">
-                    <div class="data-flow"></div>
-                </div>
-                <div class="network-node" id="kubelet">
-                    <strong>kubelet</strong><br>
-                    <small>Node Agent</small>
-                </div>
-                <div class="connection-line" id="conn4">
-                    <div class="data-flow"></div>
-                </div>
-                <div class="network-node" id="pod">
-                    <strong>Pod</strong><br>
-                    <small>nginx:80</small>
-                </div>
-            </div>
-        </div>
-
-        <div class="demo-section">
-            <h3>🎮 Interactive Controls</h3>
-            <div class="controls">
-                <button class="btn" onclick="simulatePortForward()">Start Port Forward</button>
-                <button class="btn" onclick="sendTestRequest()">Send HTTP Request</button>
-                <button class="btn" onclick="simulateMultiPort()">Multi-Port Forward</button>
-                <button class="btn danger" onclick="killPortForward()">Kill Process</button>
-                <button class="btn success" onclick="troubleshoot()">Auto Troubleshoot</button>
-                <button class="btn" onclick="clearLogs()">Clear Logs</button>
-            </div>
-        </div>
-
-        <div class="demo-section">
-            <h3>📊 Connection Status</h3>
-            <div class="status-panel">
-                <div class="status-item">
-                    <span>Port Forward Status:</span>
-                    <span class="status-value disconnected" id="pfStatus">Disconnected</span>
-                </div>
-                <div class="status-item">
-                    <span>Local Port:</span>
-                    <span class="status-value" id="localPort">8080</span>
-                </div>
-                <div class="status-item">
-                    <span>Target Pod:</span>
-                    <span class="status-value" id="targetPod">nginx</span>
-                </div>
-                <div class="status-item">
-                    <span>Pod IP:</span>
-                    <span class="status-value" id="podIP">10.244.1.5</span>
-                </div>
-                <div class="status-item">
-                    <span>Active Connections:</span>
-                    <span class="status-value" id="activeConns">0</span>
-                </div>
-                <div class="status-item">
-                    <span>Bytes Transferred:</span>
-                    <span class="status-value" id="bytesTransferred">0</span>
-                </div>
-            </div>
-        </div>
-
-        <div class="demo-section">
-            <h3>💻 Terminal Output</h3>
-            <div class="terminal">
-                <div class="terminal-header">
-                    <div class="terminal-dots">
-                        <div class="dot red"></div>
-                        <div class="dot yellow"></div>
-                        <div class="dot green"></div>
+        <main class="main-content">
+            <section class="simulation-column">
+                <div class="panel">
+                    <h2 class="panel-header">🌐 Network Flow</h2>
+                    <div class="network-diagram">
+                        <div class="network-node" id="node-browser">
+                            <div class="node-icon">🌐</div>
+                            <div class="node-label">Browser</div>
+                            <div class="node-sublabel">localhost:8080</div>
+                        </div>
+                        <div class="connection" id="conn-1">
+                            <svg><path class="data-flow-path forward-flow" d="M0 10 H1000"></path><path class="data-flow-path backward-flow" d="M0 10 H1000"></path></svg>
+                        </div>
+                        <div class="network-node" id="node-kubectl">
+                            <div class="node-icon">💻</div>
+                            <div class="node-label">kubectl</div>
+                            <div class="node-sublabel">Proxy</div>
+                        </div>
+                        <div class="connection" id="conn-2">
+                             <svg><path class="data-flow-path forward-flow" d="M0 10 H1000"></path><path class="data-flow-path backward-flow" d="M0 10 H1000"></path></svg>
+                        </div>
+                        <div class="network-node" id="node-apiserver">
+                            <div class="node-icon">🔑</div>
+                            <div class="node-label">API Server</div>
+                            <div class="node-sublabel">SPDY/WebSocket</div>
+                        </div>
+                        <div class="connection" id="conn-3">
+                             <svg><path class="data-flow-path forward-flow" d="M0 10 H1000"></path><path class="data-flow-path backward-flow" d="M0 10 H1000"></path></svg>
+                        </div>
+                        <div class="network-node" id="node-kubelet">
+                             <div class="node-icon">🛠️</div>
+                            <div class="node-label">Kubelet</div>
+                             <div class="node-sublabel">Node Agent</div>
+                        </div>
+                        <div class="connection" id="conn-4">
+                             <svg><path class="data-flow-path forward-flow" d="M0 10 H1000"></path><path class="data-flow-path backward-flow" d="M0 10 H1000"></path></svg>
+                        </div>
+                        <div class="network-node" id="node-pod">
+                             <div class="node-icon">📦</div>
+                            <div class="node-label">Pod</div>
+                             <div class="node-sublabel">nginx:80</div>
+                        </div>
                     </div>
-                    <div class="terminal-title">kubectl port-forward simulation</div>
                 </div>
-                <div class="terminal-content" id="terminalOutput">
-                    <div class="prompt">$ </div>
-                    <div class="output">Ready to simulate kubectl port-forward. Click 'Start Port Forward' to begin.</div>
+                <div class="panel">
+                    <h2 class="panel-header">💻 Terminal</h2>
+                    <div class="terminal">
+                        <div class="terminal-header">
+                            <div class="terminal-dots">
+                                <div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div>
+                            </div>
+                        </div>
+                        <div class="terminal-content" id="terminal-content"></div>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <div class="demo-section">
-            <h3>📝 Live Logs</h3>
-            <div class="logs-panel" id="logsPanel">
-                <div class="log-entry">
-                    <span class="log-timestamp">[00:00:00]</span>
-                    <span class="log-level info">[INFO]</span>
-                    Demo initialized. Ready for port-forward simulation.
+            </section>
+            
+            <section class="controls-column">
+                <div class="panel">
+                    <h2 class="panel-header">🎮 Controls</h2>
+                    <div class="controls">
+                        <button class="btn" id="btn-start">Start Port Forward</button>
+                        <button class="btn" id="btn-request" disabled>Send HTTP Request</button>
+                        <button class="btn danger" id="btn-kill" disabled>Kill Process</button>
+                        <button class="btn" id="btn-reset">Reset Demo</button>
+                    </div>
                 </div>
-            </div>
-        </div>
-
-        <div class="troubleshooting">
-            <h4>🔧 Real kubectl Commands You Can Try</h4>
-            <div class="command-examples">
-                <p><strong>Basic port-forward:</strong></p>
-                <code>kubectl port-forward pod/nginx 8080:80</code>
-                
-                <p><strong>With verbose logging:</strong></p>
-                <code>kubectl port-forward nginx 8080:80 --v=6</code>
-                
-                <p><strong>Check pod status:</strong></p>
-                <code>kubectl get pods -o wide</code>
-                
-                <p><strong>Test connectivity:</strong></p>
-                <code>curl -v http://localhost:8080</code>
-                
-                <p><strong>Check permissions:</strong></p>
-                <code>kubectl auth can-i create pods/portforward</code>
-            </div>
-        </div>
-
-        <div class="usage-stats">
-            <span id="connectionStatus">🔄 Connecting to global stats...</span> •
-            <span class="highlight" id="totalUsage">0</span> total port-forward demos 
-            • <span class="highlight" id="sessionsToday">0</span> sessions today 
-            • Last demo: <span class="highlight" id="lastDemo">Never</span>
-        </div>
-        
-        <div class="footer">
-            <div class="footer-links">
-                <a href="https://demos.learningdevops.com/" class="footer-link back">
-                    ← Back to Demos
-                </a>
-                <a href="https://github.com/rajeshkio" class="footer-link github" target="_blank">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                    </svg>
-                    GitHub
-                </a>
-                <a href="https://www.linkedin.com/in/techwith-rajesh/" class="footer-link linkedin" target="_blank">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                    </svg>
-                    LinkedIn
-                </a>
-                <a href="https://blogs.learningdevops.com/from-local-to-pod-how-kubectl-port-forward-bridges-the-gap-0b27af2a7aea" class="footer-link blog" target="_blank">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
-                    </svg>
-                    Blog Article
-                </a>
-            </div>
-            <div class="footer-credits">
-                Built with Kubernetes • WebSocket • kubectl • Netlify Functions
-            </div>
-        </div>
+                <div class="panel">
+                    <h2 class="panel-header">📊 Status</h2>
+                    <div class="status-list">
+                        <div class="status-item">
+                            <span>Tunnel Status:</span>
+                            <span class="status-value disconnected" id="status-tunnel">Disconnected</span>
+                        </div>
+                         <div class="status-item">
+                            <span>Target Pod:</span>
+                            <span class="status-value" id="status-pod">nginx-pod</span>
+                        </div>
+                        <div class="status-item">
+                            <span>Local Port:</span>
+                            <span class="status-value" id="status-local-port">8080</span>
+                        </div>
+                         <div class="status-item">
+                            <span>Pod Port:</span>
+                            <span class="status-value" id="status-pod-port">80</span>
+                        </div>
+                        <div class="status-item">
+                            <span>Bytes Transferred:</span>
+                            <span class="status-value" id="status-bytes">0 B</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
     </div>
 
     <script>
-        let portForwardActive = false;
-        let connectionCount = 0;
-        let bytesCount = 0;
-        let logCounter = 0;
-        let sessionDemos = 0;
-
-        // Global stats tracking via secure Netlify function
-        let usageStats = {
-            totalDemos: 0,
-            demosToday: 0,
-            lastDemo: null
-        };
-        
-        // Auto-detect Netlify function endpoint
-        const isNetlify = window.location.hostname.includes('netlify.app');
-        const API_BASE = isNetlify 
-            ? `${window.location.origin}/.netlify/functions`
-            : 'https://aesthetic-croissant-a06c3f.netlify.app/.netlify/functions';
-
-        // Secure API functions for port-forward demo stats
-        async function fetchStats() {
-            try {
-                const response = await fetch(`${API_BASE}/portforward-stats`);
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
-                
-                usageStats = {
-                    totalDemos: data.totalDemos || 0,
-                    demosToday: data.demosToday || 0,
-                    lastDemo: null
-                };
-                
-                // Handle Firebase timestamp conversion properly
-                if (data.lastDemo) {
-                    if (data.lastDemo._seconds) {
-                        usageStats.lastDemo = new Date(data.lastDemo._seconds * 1000);
-                    } else if (data.lastDemo.seconds) {
-                        usageStats.lastDemo = new Date(data.lastDemo.seconds * 1000);
-                    } else if (typeof data.lastDemo === 'string') {
-                        usageStats.lastDemo = new Date(data.lastDemo);
-                    } else if (data.lastDemo instanceof Date) {
-                        usageStats.lastDemo = data.lastDemo;
-                    }
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- STATE MANAGEMENT ---
+            const appState = {
+                tunnelActive: false,
+                bytesTransferred: 0,
+                podName: 'nginx-pod-7b5dcf9f9c-12345',
+                localPort: 8080,
+                podPort: 80,
+                get formattedBytes() {
+                    if (this.bytesTransferred < 1024) return `${this.bytesTransferred} B`;
+                    return `${(this.bytesTransferred / 1024).toFixed(2)} KB`;
                 }
-                
-                updateUsageDisplay();
-                console.log('📡 Port-forward stats loaded securely via Netlify function');
-                return true;
-            } catch (error) {
-                console.log('📱 Secure API unavailable, using localStorage fallback:', error);
-                loadLocalStats();
-                return false;
-            }
-        }
-        
-        async function incrementStats() {
-            try {
-                const response = await fetch(`${API_BASE}/portforward-stats`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+            };
+
+            // --- DOM ELEMENTS ---
+            const elements = {
+                buttons: {
+                    start: document.getElementById('btn-start'),
+                    request: document.getElementById('btn-request'),
+                    kill: document.getElementById('btn-kill'),
+                    reset: document.getElementById('btn-reset'),
+                },
+                status: {
+                    tunnel: document.getElementById('status-tunnel'),
+                    pod: document.getElementById('status-pod'),
+                    localPort: document.getElementById('status-local-port'),
+                    podPort: document.getElementById('status-pod-port'),
+                    bytes: document.getElementById('status-bytes'),
+                },
+                terminalContent: document.getElementById('terminal-content'),
+                nodes: ['browser', 'kubectl', 'apiserver', 'kubelet', 'pod'].map(id => document.getElementById(`node-${id}`)),
+                connections: [1, 2, 3, 4].map(id => document.getElementById(`conn-${id}`)),
+            };
+
+            // --- RENDER & LOGIC FUNCTIONS ---
+            const render = () => {
+                // Buttons
+                elements.buttons.start.disabled = appState.tunnelActive;
+                elements.buttons.request.disabled = !appState.tunnelActive;
+                elements.buttons.kill.disabled = !appState.tunnelActive;
+
+                // Status Panel
+                elements.status.tunnel.textContent = appState.tunnelActive ? 'Connected' : 'Disconnected';
+                elements.status.tunnel.className = `status-value ${appState.tunnelActive ? 'connected' : 'disconnected'}`;
+                elements.status.pod.textContent = appState.podName;
+                elements.status.localPort.textContent = appState.localPort;
+                elements.status.podPort.textContent = appState.podPort;
+                elements.status.bytes.textContent = appState.formattedBytes;
+            };
+
+            const logToTerminal = (text, type = 'output') => {
+                const line = document.createElement('div');
+                line.className = 'terminal-line';
+                line.innerHTML = `<span class="${type}">${text}</span>`;
+                elements.terminalContent.appendChild(line);
+                elements.terminalContent.scrollTop = elements.terminalContent.scrollHeight;
+            };
+
+            const typeCommand = (command, delay = 50) => {
+                return new Promise(resolve => {
+                    let i = 0;
+                    const prompt = `<span class="prompt">$ </span>`;
+                    const line = document.createElement('div');
+                    line.className = 'terminal-line';
+                    line.innerHTML = `${prompt}<span class="command"></span>`;
+                    elements.terminalContent.appendChild(line);
+                    const commandElement = line.querySelector('.command');
+
+                    const interval = setInterval(() => {
+                        commandElement.textContent += command[i];
+                        i++;
+                        if (i === command.length) {
+                            clearInterval(interval);
+                            resolve();
+                        }
+                    }, delay);
                 });
+            };
+
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+            
+            const animateFlow = async (direction = 'forward') => {
+                const flowClass = direction === 'forward' ? 'forward-flow' : 'backward-flow';
+                const sequence = direction === 'forward' 
+                    ? [0, 1, 2, 3] 
+                    : [3, 2, 1, 0];
                 
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const data = await response.json();
-                
-                usageStats = {
-                    totalDemos: data.totalDemos || 0,
-                    demosToday: data.demosToday || 0,
-                    lastDemo: null
-                };
-                
-                // Handle Firebase timestamp conversion properly
-                if (data.lastDemo) {
-                    if (data.lastDemo._seconds) {
-                        usageStats.lastDemo = new Date(data.lastDemo._seconds * 1000);
-                    } else if (data.lastDemo.seconds) {
-                        usageStats.lastDemo = new Date(data.lastDemo.seconds * 1000);
-                    } else if (typeof data.lastDemo === 'string') {
-                        usageStats.lastDemo = new Date(data.lastDemo);
-                    } else if (data.lastDemo instanceof Date) {
-                        usageStats.lastDemo = data.lastDemo;
-                    }
+                for (const i of sequence) {
+                    elements.connections[i].querySelector(`.${flowClass}`).parentElement.parentElement.classList.add('active');
+                    elements.nodes[i + (direction === 'forward' ? 0 : 1)].classList.add('active');
+                    await sleep(400);
+                    elements.nodes[i + (direction === 'forward' ? 0 : 1)].classList.remove('active');
                 }
+                 elements.nodes[direction === 'forward' ? 4 : 0].classList.add('active');
+
+                 await sleep(800);
+                 elements.nodes.forEach(n => n.classList.remove('active'));
+                 elements.connections.forEach(c => c.classList.remove('active'));
+            };
+
+            // --- EVENT HANDLERS ---
+            const handleStart = async () => {
+                logToTerminal('');
+                await typeCommand(`kubectl port-forward pod/${appState.podName} ${appState.localPort}:${appState.podPort}`);
+                await sleep(500);
+                logToTerminal('I0721 23:35:10.123456 ... portforward.go:400] Forwarding from 127.0.0.1:8080 -> 80');
+                logToTerminal('I0721 23:35:10.123567 ... portforward.go:400] Forwarding from [::1]:8080 -> 80');
+                await sleep(200);
+                logToTerminal('I0721 23:35:10.345678 ... portforward.go:233] Handling connection for 8080', 'output success');
+                appState.tunnelActive = true;
+                render();
+            };
+
+            const handleRequest = async () => {
+                logToTerminal('');
+                await typeCommand(`curl http://localhost:${appState.localPort}`);
+                logToTerminal('Sending request through tunnel...');
+                await animateFlow('forward');
                 
-                updateUsageDisplay();
-                console.log('📡 Global port-forward demo count updated securely!');
-                return true;
-            } catch (error) {
-                console.log('📱 Secure API failed, using local increment:', error);
-                incrementLocalStats();
-                return false;
-            }
-        }
-        
-        function loadLocalStats() {
-            const stored = localStorage.getItem('portForwardUsageStats');
-            if (stored) {
-                usageStats = JSON.parse(stored);
-                if (usageStats.lastDemo) {
-                    usageStats.lastDemo = new Date(usageStats.lastDemo);
-                }
-            } else {
-                usageStats = {
-                    totalDemos: 0,
-                    demosToday: 0,
-                    lastDemo: null
-                };
-            }
-            updateUsageDisplay();
-        }
-        
-        function incrementLocalStats() {
-            usageStats.totalDemos++;
-            usageStats.demosToday++;
-            usageStats.lastDemo = new Date();
-            localStorage.setItem('portForwardUsageStats', JSON.stringify(usageStats));
-            updateUsageDisplay();
-        }
-        
-        function updateUsageDisplay() {
-            document.getElementById('totalUsage').textContent = usageStats.totalDemos.toLocaleString();
-            document.getElementById('sessionsToday').textContent = usageStats.demosToday;
-            
-            // Update connection status
-            const connectionStatus = document.getElementById('connectionStatus');
-            if (API_BASE.includes('netlify')) {
-                connectionStatus.innerHTML = '🔒 <strong>Secure Global Stats</strong>';
-                connectionStatus.style.color = '#48bb78';
-            } else {
-                connectionStatus.innerHTML = '📱 <strong>Local Mode</strong>';
-                connectionStatus.style.color = '#f6e05e';
-            }
-            
-            if (usageStats.lastDemo && usageStats.lastDemo instanceof Date && !isNaN(usageStats.lastDemo)) {
-                const lastTime = usageStats.lastDemo;
-                const now = new Date();
-                const diffMinutes = Math.floor((now - lastTime) / 60000);
-                
-                let timeText;
-                if (diffMinutes < 1) {
-                    timeText = 'Just now';
-                } else if (diffMinutes < 60) {
-                    timeText = `${diffMinutes}m ago`;
-                } else if (diffMinutes < 1440) {
-                    timeText = `${Math.floor(diffMinutes / 60)}h ago`;
-                } else {
-                    timeText = lastTime.toLocaleDateString();
-                }
-                
-                document.getElementById('lastDemo').textContent = timeText;
-            } else {
-                document.getElementById('lastDemo').textContent = 'Never';
-            }
-        }
+                logToTerminal('Receiving response from pod...');
+                await animateFlow('backward');
 
-        function log(level, message) {
-            const timestamp = new Date().toLocaleTimeString();
-            const logsPanel = document.getElementById('logsPanel');
-            const logEntry = document.createElement('div');
-            logEntry.className = 'log-entry';
-            logEntry.innerHTML = `
-                <span class="log-timestamp">[${timestamp}]</span>
-                <span class="log-level ${level}">[${level.toUpperCase()}]</span>
-                ${message}
-            `;
-            logsPanel.appendChild(logEntry);
-            logsPanel.scrollTop = logsPanel.scrollHeight;
-            logCounter++;
-        }
+                const transferred = Math.floor(512 + Math.random() * 1024);
+                appState.bytesTransferred += transferred;
+                logToTerminal(`HTTP/1.1 200 OK`, 'output success');
+                logToTerminal(`Content-Length: ${transferred}`);
+                logToTerminal('Welcome to nginx!', 'output');
+                render();
+            };
 
-        function updateStatus(field, value, className = '') {
-            const element = document.getElementById(field);
-            element.textContent = value;
-            if (className) {
-                element.className = `status-value ${className}`;
-            }
-        }
+            const handleKill = () => {
+                logToTerminal('');
+                logToTerminal('^C', 'output warning');
+                logToTerminal('I0721 23:36:00.987654 ... portforward.go:275] remove connection...', 'output warning');
+                appState.tunnelActive = false;
+                render();
+            };
 
-        function addTerminalOutput(text, className = 'output') {
-            const terminal = document.getElementById('terminalOutput');
-            const line = document.createElement('div');
-            line.className = className;
-            line.textContent = text;
-            terminal.appendChild(line);
-            terminal.scrollTop = terminal.scrollHeight;
-        }
+            const handleReset = () => {
+                appState.tunnelActive = false;
+                appState.bytesTransferred = 0;
+                elements.terminalContent.innerHTML = '';
+                logToTerminal('Demo reset. Ready to start.');
+                render();
+            };
 
-        function animateNetworkFlow() {
-            const nodes = ['browser', 'kubectl', 'apiserver', 'kubelet', 'pod'];
-            const connections = ['conn1', 'conn2', 'conn3', 'conn4'];
+            // --- INITIALIZATION ---
+            elements.buttons.start.addEventListener('click', handleStart);
+            elements.buttons.request.addEventListener('click', handleRequest);
+            elements.buttons.kill.addEventListener('click', handleKill);
+            elements.buttons.reset.addEventListener('click', handleReset);
             
-            let currentIndex = 0;
-            
-            function activateNext() {
-                // Reset all
-                nodes.forEach(id => document.getElementById(id).classList.remove('active'));
-                connections.forEach(id => document.getElementById(id).classList.remove('active'));
-                
-                if (currentIndex < nodes.length) {
-                    document.getElementById(nodes[currentIndex]).classList.add('active');
-                    if (currentIndex > 0) {
-                        document.getElementById(connections[currentIndex - 1]).classList.add('active');
-                    }
-                    currentIndex++;
-                    setTimeout(activateNext, 800);
-                } else {
-                    currentIndex = 0;
-                    if (portForwardActive) {
-                        setTimeout(activateNext, 1000);
-                    }
-                }
-            }
-            
-            activateNext();
-        }
-
-        function simulatePortForward() {
-            if (portForwardActive) {
-                log('warn', 'Port-forward already active');
-                return;
-            }
-
-            portForwardActive = true;
-            updateStatus('pfStatus', 'Connected', 'connected');
-            
-            // Increment global demo count
-            sessionDemos++;
-            incrementStats();
-            
-            addTerminalOutput('$ kubectl port-forward pod/nginx 8080:80 --v=6', 'command');
-            
-            setTimeout(() => {
-                addTerminalOutput('I0711 10:30:15.123456 12345 round_trippers.go:466] curl -k -v -XPOST -H "Upgrade: websocket"');
-                log('info', 'Establishing WebSocket connection to API server');
-            }, 500);
-            
-            setTimeout(() => {
-                addTerminalOutput('I0711 10:30:15.234567 12345 portforward.go:340] creating port forwarding streams');
-                log('info', 'Creating port forwarding streams');
-            }, 1000);
-            
-            setTimeout(() => {
-                addTerminalOutput('Forwarding from 127.0.0.1:8080 -> 80', 'success');
-                addTerminalOutput('Forwarding from [::1]:8080 -> 80', 'success');
-                log('info', `Port-forward tunnel established successfully (Global demo #${usageStats.totalDemos})`);
-                animateNetworkFlow();
-            }, 1500);
-        }
-
-        function sendTestRequest() {
-            if (!portForwardActive) {
-                log('error', 'Port-forward not active. Start port-forward first.');
-                addTerminalOutput('curl: (7) Failed to connect to localhost port 8080: Connection refused', 'error');
-                return;
-            }
-
-            connectionCount++;
-            bytesCount += Math.floor(Math.random() * 2048) + 512;
-            
-            updateStatus('activeConns', connectionCount);
-            updateStatus('bytesTransferred', `${bytesCount} bytes`);
-            
-            addTerminalOutput('$ curl -v http://localhost:8080', 'command');
-            
-            setTimeout(() => {
-                addTerminalOutput('* Connected to localhost (127.0.0.1) port 8080 (#0)');
-                addTerminalOutput('> GET / HTTP/1.1');
-                addTerminalOutput('> Host: localhost:8080');
-                log('info', `HTTP request routed through tunnel to pod ${document.getElementById('targetPod').textContent}`);
-            }, 300);
-            
-            setTimeout(() => {
-                addTerminalOutput('< HTTP/1.1 200 OK');
-                addTerminalOutput('< Server: nginx/1.21.1');
-                addTerminalOutput('< Content-Type: text/html');
-                addTerminalOutput('< Content-Length: 615');
-                addTerminalOutput('');
-                addTerminalOutput('<!DOCTYPE html><html><head><title>Welcome to nginx!</title></head>...', 'success');
-                log('info', `Request completed successfully. Response received from pod.`);
-            }, 800);
-            
-            animateNetworkFlow();
-        }
-
-        function simulateMultiPort() {
-            if (portForwardActive) {
-                addTerminalOutput('$ kubectl port-forward nginx 8080:80 8443:443', 'command');
-                
-                setTimeout(() => {
-                    addTerminalOutput('Forwarding from 127.0.0.1:8080 -> 80', 'success');
-                    addTerminalOutput('Forwarding from [::1]:8080 -> 80', 'success');
-                    addTerminalOutput('Forwarding from 127.0.0.1:8443 -> 443', 'success');
-                    addTerminalOutput('Forwarding from [::1]:8443 -> 443', 'success');
-                    log('info', 'Multiple port forwarding established: 8080->80, 8443->443');
-                }, 500);
-            } else {
-                log('error', 'Start port-forward first');
-            }
-        }
-
-        function killPortForward() {
-            if (!portForwardActive) {
-                log('warn', 'No active port-forward to kill');
-                return;
-            }
-
-            portForwardActive = false;
-            updateStatus('pfStatus', 'Disconnected', 'disconnected');
-            updateStatus('activeConns', '0');
-            
-            addTerminalOutput('^C', 'warning');
-            addTerminalOutput('Connection closed by remote host', 'warning');
-            log('warn', 'Port-forward process terminated');
-            
-            // Reset animation
-            const nodes = ['browser', 'kubectl', 'apiserver', 'kubelet', 'pod'];
-            const connections = ['conn1', 'conn2', 'conn3', 'conn4'];
-            nodes.forEach(id => document.getElementById(id).classList.remove('active'));
-            connections.forEach(id => document.getElementById(id).classList.remove('active'));
-        }
-
-        function troubleshoot() {
-            addTerminalOutput('$ kubectl get pods nginx -o yaml | grep -A 10 status', 'command');
-            
-            setTimeout(() => {
-                addTerminalOutput('  phase: Running');
-                addTerminalOutput('  conditions:');
-                addTerminalOutput('  - type: Ready');
-                addTerminalOutput('    status: "True"');
-                log('info', 'Pod health check: PASSED');
-            }, 500);
-            
-            setTimeout(() => {
-                addTerminalOutput('$ kubectl exec nginx -- netstat -tlnp | grep :80', 'command');
-                addTerminalOutput('tcp  0  0  0.0.0.0:80  0.0.0.0:*  LISTEN  1/nginx');
-                log('info', 'Port availability check: PASSED');
-            }, 1000);
-            
-            setTimeout(() => {
-                addTerminalOutput('$ kubectl auth can-i create pods/portforward', 'command');
-                addTerminalOutput('yes', 'success');
-                log('info', 'RBAC permissions check: PASSED');
-            }, 1500);
-            
-            setTimeout(() => {
-                log('info', 'Troubleshooting complete. All checks passed.');
-            }, 2000);
-        }
-
-        function clearLogs() {
-            document.getElementById('logsPanel').innerHTML = '';
-            document.getElementById('terminalOutput').innerHTML = `
-                <div class="prompt">$ </div>
-                <div class="output">Terminal cleared. Ready for new commands.</div>
-            `;
-            logCounter = 0;
-        }
-
-        // Simulate some background activity
-        setInterval(() => {
-            if (portForwardActive && Math.random() > 0.8) {
-                const activities = [
-                    'Keep-alive packet sent to API server',
-                    'WebSocket heartbeat received',
-                    'Connection health check completed',
-                    'Tunnel metrics updated'
-                ];
-                log('info', activities[Math.floor(Math.random() * activities.length)]);
-            }
-        }, 5000);
-
-        // Initialize demo
-        log('info', 'kubectl port-forward demo ready. Try the interactive controls above!');
-
-        // Initialize stats and demo
-        document.addEventListener('DOMContentLoaded', async function() {
-            console.log('🔒 Secure kubectl port-forward demo initialized');
-            
-            // Load global stats securely via Netlify function
-            await fetchStats();
-            
-            // Periodic stats refresh for real-time updates
-            setInterval(async () => {
-                if (!portForwardActive) {
-                    await fetchStats();
-                }
-            }, 30000);
+            handleReset(); // Initial setup
         });
     </script>
 </body>
