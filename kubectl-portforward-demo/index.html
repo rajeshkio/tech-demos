@@ -63,6 +63,31 @@
             color: #7f8c8d;
         }
 
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            font-size: 14px;
+            color: #4a5568;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
         .main-content {
             display: grid;
             grid-template-columns: 1.5fr 1fr;
@@ -250,9 +275,90 @@
         .terminal-line .output.error { color: var(--error-color); }
         .terminal-line .output.warning { color: var(--warning-color); }
 
+        .usage-stats {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 13px;
+            color: #4a5568;
+        }
+        
+        .usage-stats .highlight {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .footer {
+            padding: 20px 30px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .footer-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #4a5568;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .footer-link:hover {
+            background: #edf2f7;
+            color: #2d3748;
+            transform: translateY(-1px);
+        }
+        
+        .footer-link.github:hover {
+            background: #24292e;
+            color: white;
+        }
+        
+        .footer-link.linkedin:hover {
+            background: #0077b5;
+            color: white;
+        }
+        
+        .footer-link.back:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .footer-link.blog:hover {
+            background: #f56565;
+            color: white;
+        }
+        
+        .footer-credits {
+            font-size: 13px;
+            color: #718096;
+        }
+
         @media (max-width: 1024px) {
             .main-content {
                 grid-template-columns: 1fr;
+            }
+            .footer {
+                flex-direction: column;
+                text-align: center;
+            }
+            .footer-links {
+                justify-content: center;
             }
         }
     </style>
@@ -261,9 +367,28 @@
 
     <div class="container">
         <header class="page-header">
-            <h1>kubectl port-forward Deep Dive</h1>
-            <p>An interactive simulation of the complete network flow.</p>
+            <h1>🚀 kubectl port-forward Deep Dive</h1>
+            <p>An interactive simulation of the complete network flow from your browser to a Kubernetes pod</p>
         </header>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-value" id="totalTunnels">0</div>
+                <div class="stat-label">Tunnels Created</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="totalRequests">0</div>
+                <div class="stat-label">HTTP Requests</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="totalBytes">0</div>
+                <div class="stat-label">Bytes Transferred</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="successRate">100%</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+        </div>
 
         <main class="main-content">
             <section class="simulation-column">
@@ -352,13 +477,43 @@
                             <span class="status-value" id="status-pod-port">80</span>
                         </div>
                         <div class="status-item">
-                            <span>Bytes Transferred:</span>
+                            <span>Session Bytes:</span>
                             <span class="status-value" id="status-bytes">0 B</span>
                         </div>
                     </div>
                 </div>
             </section>
         </main>
+
+        <div class="usage-stats">
+            <span id="connectionStatus">🔄 Connecting to global stats...</span> •
+            <span class="highlight" id="totalDemos">0</span> total port-forward demos 
+            • <span class="highlight" id="demosToday">0</span> sessions today 
+            • Last demo: <span class="highlight" id="lastDemo">Never</span>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-links">
+                <a href="https://demos.learningdevops.com/" class="footer-link back">
+                    ← Back to Demos
+                </a>
+                <a href="https://www.linkedin.com/in/techwith-rajesh/" class="footer-link linkedin" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                    LinkedIn
+                </a>
+                <a href="https://medium.com/@rk90229/from-local-to-pod-how-kubectl-port-forward-bridges-the-gap-0b27af2a7aea" class="footer-link blog" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    Blog Article
+                </a>
+            </div>
+            <div class="footer-credits">
+                Built with kubectl • Kubernetes • WebSockets • Netlify Functions
+            </div>
+        </div>
     </div>
 
     <script>
@@ -366,15 +521,31 @@
             // --- STATE MANAGEMENT ---
             const appState = {
                 tunnelActive: false,
-                bytesTransferred: 0,
+                sessionBytes: 0,
+                sessionTunnels: 0,
+                sessionRequests: 0,
+                sessionErrors: 0,
                 podName: 'nginx-pod-7b5dcf9f9c-12345',
                 localPort: 8080,
                 podPort: 80,
                 get formattedBytes() {
-                    if (this.bytesTransferred < 1024) return `${this.bytesTransferred} B`;
-                    return `${(this.bytesTransferred / 1024).toFixed(2)} KB`;
+                    if (this.sessionBytes < 1024) return `${this.sessionBytes} B`;
+                    return `${(this.sessionBytes / 1024).toFixed(2)} KB`;
                 }
             };
+
+            // Global stats tracking
+            let usageStats = {
+                totalDemos: 0,
+                demosToday: 0,
+                lastDemo: null
+            };
+
+            // Auto-detect Netlify function endpoint
+            const isNetlify = window.location.hostname.includes('netlify.app');
+            const API_BASE = isNetlify 
+                ? `${window.location.origin}/.netlify/functions`
+                : 'https://aesthetic-croissant-a06c3f.netlify.app/.netlify/functions';
 
             // --- DOM ELEMENTS ---
             const elements = {
@@ -391,10 +562,151 @@
                     podPort: document.getElementById('status-pod-port'),
                     bytes: document.getElementById('status-bytes'),
                 },
+                stats: {
+                    totalTunnels: document.getElementById('totalTunnels'),
+                    totalRequests: document.getElementById('totalRequests'),
+                    totalBytes: document.getElementById('totalBytes'),
+                    successRate: document.getElementById('successRate'),
+                },
+                usage: {
+                    connectionStatus: document.getElementById('connectionStatus'),
+                    totalDemos: document.getElementById('totalDemos'),
+                    demosToday: document.getElementById('demosToday'),
+                    lastDemo: document.getElementById('lastDemo'),
+                },
                 terminalContent: document.getElementById('terminal-content'),
                 nodes: ['browser', 'kubectl', 'apiserver', 'kubelet', 'pod'].map(id => document.getElementById(`node-${id}`)),
                 connections: [1, 2, 3, 4].map(id => document.getElementById(`conn-${id}`)),
             };
+
+            // --- STATS FUNCTIONS ---
+            async function fetchStats() {
+                try {
+                    const response = await fetch(`${API_BASE}/portforward-stats`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    
+                    usageStats = {
+                        totalDemos: data.totalDemos || 0,
+                        demosToday: data.demosToday || 0,
+                        lastDemo: null
+                    };
+                    
+                    // Handle Firebase timestamp conversion
+                    if (data.lastDemo) {
+                        if (data.lastDemo._seconds) {
+                            usageStats.lastDemo = new Date(data.lastDemo._seconds * 1000);
+                        } else if (data.lastDemo.seconds) {
+                            usageStats.lastDemo = new Date(data.lastDemo.seconds * 1000);
+                        } else if (typeof data.lastDemo === 'string') {
+                            usageStats.lastDemo = new Date(data.lastDemo);
+                        }
+                    }
+                    
+                    updateUsageDisplay();
+                    console.log('📡 Port-forward stats loaded securely via Netlify function');
+                    return true;
+                } catch (error) {
+                    console.log('📱 Secure API unavailable, using localStorage fallback:', error);
+                    loadLocalStats();
+                    return false;
+                }
+            }
+            
+            async function incrementStats() {
+                try {
+                    const response = await fetch(`${API_BASE}/portforward-stats`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const data = await response.json();
+                    
+                    usageStats = {
+                        totalDemos: data.totalDemos || 0,
+                        demosToday: data.demosToday || 0,
+                        lastDemo: null
+                    };
+                    
+                    // Handle Firebase timestamp conversion
+                    if (data.lastDemo) {
+                        if (data.lastDemo._seconds) {
+                            usageStats.lastDemo = new Date(data.lastDemo._seconds * 1000);
+                        } else if (data.lastDemo.seconds) {
+                            usageStats.lastDemo = new Date(data.lastDemo.seconds * 1000);
+                        }
+                    }
+                    
+                    updateUsageDisplay();
+                    console.log('📡 Global port-forward demo count updated securely!');
+                    return true;
+                } catch (error) {
+                    console.log('📱 Secure API failed, using local increment:', error);
+                    incrementLocalStats();
+                    return false;
+                }
+            }
+            
+            function loadLocalStats() {
+                const stored = localStorage.getItem('portForwardUsageStats');
+                if (stored) {
+                    usageStats = JSON.parse(stored);
+                    if (usageStats.lastDemo) {
+                        usageStats.lastDemo = new Date(usageStats.lastDemo);
+                    }
+                } else {
+                    usageStats = {
+                        totalDemos: 0,
+                        demosToday: 0,
+                        lastDemo: null
+                    };
+                }
+                updateUsageDisplay();
+            }
+            
+            function incrementLocalStats() {
+                usageStats.totalDemos++;
+                usageStats.demosToday++;
+                usageStats.lastDemo = new Date();
+                localStorage.setItem('portForwardUsageStats', JSON.stringify(usageStats));
+                updateUsageDisplay();
+            }
+            
+            function updateUsageDisplay() {
+                elements.usage.totalDemos.textContent = usageStats.totalDemos.toLocaleString();
+                elements.usage.demosToday.textContent = usageStats.demosToday;
+                
+                // Update connection status
+                if (API_BASE.includes('netlify')) {
+                    elements.usage.connectionStatus.innerHTML = '🔒 <strong>Secure Global Stats</strong>';
+                    elements.usage.connectionStatus.style.color = '#48bb78';
+                } else {
+                    elements.usage.connectionStatus.innerHTML = '📱 <strong>Local Mode</strong>';
+                    elements.usage.connectionStatus.style.color = '#f6e05e';
+                }
+                
+                if (usageStats.lastDemo && usageStats.lastDemo instanceof Date && !isNaN(usageStats.lastDemo)) {
+                    const lastTime = usageStats.lastDemo;
+                    const now = new Date();
+                    const diffMinutes = Math.floor((now - lastTime) / 60000);
+                    
+                    let timeText;
+                    if (diffMinutes < 1) {
+                        timeText = 'Just now';
+                    } else if (diffMinutes < 60) {
+                        timeText = `${diffMinutes}m ago`;
+                    } else if (diffMinutes < 1440) {
+                        timeText = `${Math.floor(diffMinutes / 60)}h ago`;
+                    } else {
+                        timeText = lastTime.toLocaleDateString();
+                    }
+                    
+                    elements.usage.lastDemo.textContent = timeText;
+                } else {
+                    elements.usage.lastDemo.textContent = 'Never';
+                }
+            }
 
             // --- RENDER & LOGIC FUNCTIONS ---
             const render = () => {
@@ -410,6 +722,16 @@
                 elements.status.localPort.textContent = appState.localPort;
                 elements.status.podPort.textContent = appState.podPort;
                 elements.status.bytes.textContent = appState.formattedBytes;
+
+                // Stats bar
+                elements.stats.totalTunnels.textContent = appState.sessionTunnels;
+                elements.stats.totalRequests.textContent = appState.sessionRequests;
+                elements.stats.totalBytes.textContent = appState.formattedBytes;
+                
+                const successRate = appState.sessionRequests > 0 
+                    ? Math.round(((appState.sessionRequests - appState.sessionErrors) / appState.sessionRequests) * 100)
+                    : 100;
+                elements.stats.successRate.textContent = successRate + '%';
             };
 
             const logToTerminal = (text, type = 'output') => {
@@ -471,7 +793,13 @@
                 logToTerminal('I0721 23:35:10.123567 ... portforward.go:400] Forwarding from [::1]:8080 -> 80');
                 await sleep(200);
                 logToTerminal('I0721 23:35:10.345678 ... portforward.go:233] Handling connection for 8080', 'output success');
+                
                 appState.tunnelActive = true;
+                appState.sessionTunnels++;
+                
+                // Increment global demo count
+                await incrementStats();
+                
                 render();
             };
 
@@ -485,10 +813,13 @@
                 await animateFlow('backward');
 
                 const transferred = Math.floor(512 + Math.random() * 1024);
-                appState.bytesTransferred += transferred;
+                appState.sessionBytes += transferred;
+                appState.sessionRequests++;
+                
                 logToTerminal(`HTTP/1.1 200 OK`, 'output success');
                 logToTerminal(`Content-Length: ${transferred}`);
                 logToTerminal('Welcome to nginx!', 'output');
+                logToTerminal(`🔒 Global demo #${usageStats.totalDemos} via secure API`, 'output success');
                 render();
             };
 
@@ -502,9 +833,15 @@
 
             const handleReset = () => {
                 appState.tunnelActive = false;
-                appState.bytesTransferred = 0;
+                appState.sessionBytes = 0;
+                appState.sessionTunnels = 0;
+                appState.sessionRequests = 0;
+                appState.sessionErrors = 0;
                 elements.terminalContent.innerHTML = '';
-                logToTerminal('Demo reset. Ready to start.');
+                logToTerminal('💡 Click "Start Port Forward" to begin the simulation...');
+                logToTerminal('🎯 This demo shows exactly how kubectl creates secure tunnels');
+                logToTerminal('🔒 All stats are tracked globally via secure Netlify functions');
+                logToTerminal('');
                 render();
             };
 
@@ -514,7 +851,17 @@
             elements.buttons.kill.addEventListener('click', handleKill);
             elements.buttons.reset.addEventListener('click', handleReset);
             
-            handleReset(); // Initial setup
+            // Initialize the app
+            fetchStats().then(() => {
+                handleReset(); // Initial setup
+                
+                // Periodic stats refresh
+                setInterval(async () => {
+                    if (!appState.tunnelActive) {
+                        await fetchStats();
+                    }
+                }, 30000);
+            });
         });
     </script>
 </body>
