@@ -62,230 +62,1016 @@
             gap: 1.5rem;
         }
 
-        .toggle-group { display: flex; background: #e2e8f0; border-radius: 8px; padding: 4px; }
-        .toggle-option { padding: 10px 20px; border: none; background: transparent; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s; color: #4a5568; }
-        .toggle-option.active { background: white; color: var(--text-dark); box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .scenario-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
 
-        .domain-input { display: flex; gap: 0.75rem; align-items: center; }
-        .domain-input input { padding: 10px 15px; border: 2px solid var(--border-color); border-radius: 6px; font-size: 1rem; width: 250px; transition: border-color 0.2s; }
-        .domain-input input:focus { outline: none; border-color: var(--primary-color); }
+        .scenario-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
 
-        .btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .scenario-selector label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .scenario-selector select {
+            padding: 8px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+            min-width: 200px;
+        }
+
+        .scenario-info {
+            padding: 12px 16px;
+            background: #f0f4f8;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            max-width: 300px;
+        }
+
+        .btn { 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 6px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            font-size: 1rem;
+        }
         .btn-primary { background: var(--primary-color); color: white; }
+        .btn-success { background: var(--success-color); color: white; }
         .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
         .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
 
-        .main-content { display: grid; grid-template-columns: 1fr 1fr; }
+        .performance-bar {
+            padding: 1rem 1.5rem;
+            background: linear-gradient(135deg, #e6fffa 0%, #f0fff4 100%);
+            border-bottom: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            text-align: center;
+        }
 
-        .diagram-panel { padding: 1.5rem; border-right: 1px solid var(--border-color); position: relative; min-height: 500px; }
-        .diagram-container { position: relative; height: 100%; }
+        .metric {
+            padding: 0.5rem;
+        }
 
-        .component { position: absolute; text-align: center; font-weight: 600; font-size: 0.9rem; padding: 1rem; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-        .component .icon { font-size: 2.5rem; }
-        .pod { background: #e6fffa; border: 2px solid #38b2ac; color: #285e61; top: 15%; left: 15%; }
-        .coredns { background: #fef5e7; border: 2px solid var(--warning-color); color: #744210; top: 15%; right: 15%; }
-        .external-dns { background: #e6ffed; border: 2px solid var(--success-color); color: #22543d; bottom: 15%; right: 15%; }
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
 
-        .terminal-panel { background: var(--terminal-bg); padding: 1.5rem; color: var(--text-light); font-family: var(--font-mono); display: flex; flex-direction: column; }
-        .terminal-header { margin-bottom: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid #4a5568; color: var(--text-muted); }
-        .terminal-content { flex-grow: 1; overflow-y: auto; font-size: 0.9rem; line-height: 1.6; }
+        .metric-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .metric.highlight .metric-value {
+            color: var(--success-color);
+        }
+
+        .main-content { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            min-height: 600px;
+        }
+
+        .diagram-panel { 
+            padding: 1.5rem; 
+            border-right: 1px solid var(--border-color); 
+            position: relative; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dns-flow {
+            flex: 1;
+            position: relative;
+            padding: 2rem 0;
+        }
+
+        .component { 
+            position: absolute; 
+            text-align: center; 
+            font-weight: 600; 
+            font-size: 0.85rem; 
+            padding: 0.75rem; 
+            border-radius: 8px; 
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            min-width: 120px;
+            transition: all 0.3s ease;
+        }
+        
+        .component .icon { 
+            font-size: 2rem; 
+            margin-bottom: 0.5rem;
+        }
+
+        .component .status {
+            font-size: 0.7rem;
+            margin-top: 0.25rem;
+            opacity: 0.8;
+        }
+
+        .pod { 
+            background: #e6fffa; 
+            border: 2px solid #38b2ac; 
+            color: #285e61; 
+            top: 20%; 
+            left: 5%; 
+        }
+        
+        .coredns { 
+            background: #fef5e7; 
+            border: 2px solid var(--warning-color); 
+            color: #744210; 
+            top: 20%; 
+            left: 50%; 
+            transform: translateX(-50%);
+        }
+        
+        .upstream-dns { 
+            background: #e6ffed; 
+            border: 2px solid var(--success-color); 
+            color: #22543d; 
+            top: 20%; 
+            right: 5%; 
+        }
+
+        .search-domains {
+            position: absolute;
+            bottom: 10%;
+            left: 5%;
+            right: 5%;
+            background: #f7fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .search-domains h4 {
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        .domain-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .domain-item {
+            padding: 0.25rem 0.5rem;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            transition: all 0.3s ease;
+        }
+
+        .domain-item.querying {
+            background: #fef5e7;
+            border-color: var(--warning-color);
+            animation: pulse 1s ease-in-out;
+        }
+
+        .domain-item.failed {
+            background: #fed7d7;
+            border-color: var(--error-color);
+            text-decoration: line-through;
+        }
+
+        .domain-item.success {
+            background: #f0fff4;
+            border-color: var(--success-color);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+
+        .terminal-panel { 
+            background: var(--terminal-bg); 
+            padding: 1.5rem; 
+            color: var(--text-light); 
+            font-family: var(--font-mono); 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        .terminal-header { 
+            margin-bottom: 1rem; 
+            padding-bottom: 0.75rem; 
+            border-bottom: 1px solid #4a5568; 
+            color: var(--text-muted); 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mode-indicator {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .mode-indicator.default {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .mode-indicator.autopath {
+            background: #f0fff4;
+            color: #38a169;
+        }
+        
+        .terminal-content { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            font-size: 0.85rem; 
+            line-height: 1.5; 
+            max-height: 450px;
+        }
+
+        .terminal-line { 
+            margin-bottom: 0.25rem; 
+            padding: 0.25rem 0;
+        }
+
+        .terminal-line .timestamp {
+            color: #4a5568;
+            margin-right: 0.5rem;
+        }
 
         .terminal-line .prompt { color: var(--success-color); }
         .terminal-line .command { color: #87CEFA; }
         .terminal-line .output.success { color: var(--success-color); }
         .terminal-line .output.error { color: var(--error-color); }
         .terminal-line .output.info { color: #63b3ed; }
+        .terminal-line .output.warning { color: var(--warning-color); }
 
-        .arrow-path { stroke-width: 3; fill: none; stroke-dasharray: 6 6; animation: dash 1.5s linear infinite; transition: opacity 0.3s; }
-        @keyframes dash { to { stroke-dashoffset: -24; } }
+        .query-summary {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #2d3748;
+            border-radius: 6px;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        .query-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 1rem;
+            margin-top: 0.5rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+        }
+
+        .stat-label {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            margin-top: 0.25rem;
+        }
+
+        .usage-stats {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 13px;
+            color: #4a5568;
+        }
         
-        .arrow-text { font-weight: 600; font-size: 0.9rem; transition: opacity 0.3s; }
-        .success { fill: var(--success-color); stroke: var(--success-color); }
-        .error { fill: var(--error-color); stroke: var(--error-color); }
-        .smart { fill: var(--primary-color); stroke: var(--primary-color); }
+        .usage-stats .highlight {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .footer {
+            padding: 20px 30px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .footer-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #4a5568;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .footer-link:hover {
+            background: #edf2f7;
+            color: #2d3748;
+            transform: translateY(-1px);
+        }
+        
+        .footer-link.linkedin:hover {
+            background: #0077b5;
+            color: white;
+        }
+        
+        .footer-link.back:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .footer-link.blog:hover {
+            background: #f56565;
+            color: white;
+        }
+        
+        .footer-credits {
+            font-size: 13px;
+            color: #718096;
+        }
 
         @media (max-width: 900px) {
             .main-content { grid-template-columns: 1fr; }
-            .diagram-panel { min-height: 400px; border-right: none; border-bottom: 1px solid var(--border-color); }
+            .diagram-panel { border-right: none; border-bottom: 1px solid var(--border-color); }
             .controls-bar { flex-direction: column; }
+            .footer {
+                flex-direction: column;
+                text-align: center;
+            }
+            .footer-links {
+                justify-content: center;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <header class="page-header">
-            <h1>🔍 CoreDNS Autopath Interactive Demo</h1>
-            <p>Experience the difference between default DNS resolution and autopath optimization.</p>
+            <h1>🔍 CoreDNS Autopath Performance Demo</h1>
+            <p>See the dramatic performance difference between default DNS resolution and autopath optimization</p>
         </header>
 
         <section class="controls-bar">
-            <div class="toggle-group">
-                <button id="btn-default" class="toggle-option">🐌 Default</button>
-                <button id="btn-autopath" class="toggle-option">🚀 Autopath</button>
+            <div class="scenario-controls">
+                <div class="scenario-selector">
+                    <label>DNS Resolution Scenario:</label>
+                    <select id="scenario-select">
+                        <option value="external-domain">External Domain (google.com)</option>
+                        <option value="service-name">Service Name (frontend)</option>
+                        <option value="fqdn-service">FQDN Service (api.production.svc.cluster.local)</option>
+                        <option value="mixed-workload">Mixed Workload (10 domains)</option>
+                    </select>
+                </div>
+                <div class="scenario-info" id="scenario-info">
+                    Resolving external domains shows the biggest autopath benefit - eliminates 2 unnecessary NXDOMAIN queries
+                </div>
             </div>
-            <div class="domain-input">
-                <input type="text" id="domain-input" placeholder="e.g., google.com" value="google.com">
-                <button id="btn-resolve" class="btn btn-primary">Resolve DNS</button>
+            <div style="display: flex; gap: 1rem;">
+                <button id="btn-default" class="btn btn-primary">🐌 Test Default Mode</button>
+                <button id="btn-autopath" class="btn btn-success">🚀 Test with Autopath</button>
+            </div>
+        </section>
+
+        <section class="performance-bar">
+            <div class="metric" id="metric-queries">
+                <div class="metric-value">0</div>
+                <div class="metric-label">DNS Queries</div>
+            </div>
+            <div class="metric" id="metric-latency">
+                <div class="metric-value">0ms</div>
+                <div class="metric-label">Total Latency</div>
+            </div>
+            <div class="metric" id="metric-nxdomain">
+                <div class="metric-value">0</div>
+                <div class="metric-label">NXDOMAIN Errors</div>
+            </div>
+            <div class="metric" id="metric-efficiency">
+                <div class="metric-value">0%</div>
+                <div class="metric-label">Cache Efficiency</div>
             </div>
         </section>
 
         <main class="main-content">
             <section class="diagram-panel">
-                <div class="diagram-container" id="diagram-container">
-                    <svg style="position:absolute; width:0; height:0;">
-                        <defs>
-                            <marker id="arrowhead-success" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" class="success"/></marker>
-                            <marker id="arrowhead-error" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" class="error"/></marker>
-                            <marker id="arrowhead-smart" markerWidth="10" markerHeight="7" refX="8" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" class="smart"/></marker>
-                        </defs>
-                    </svg>
-                    <div class="component pod"><div class="icon">📦</div><div>Pod Client</div></div>
-                    <div class="component coredns"><div class="icon">⚙️</div><div>CoreDNS</div></div>
-                    <div class="component external-dns"><div class="icon">🌐</div><div>External DNS</div></div>
+                <div class="dns-flow">
+                    <div class="component pod">
+                        <div class="icon">📦</div>
+                        <div>Application Pod</div>
+                        <div class="status" id="pod-status">Ready</div>
+                    </div>
+                    <div class="component coredns">
+                        <div class="icon">⚙️</div>
+                        <div>CoreDNS</div>
+                        <div class="status" id="coredns-status">Listening</div>
+                    </div>
+                    <div class="component upstream-dns">
+                        <div class="icon">🌐</div>
+                        <div>Upstream DNS</div>
+                        <div class="status" id="upstream-status">8.8.8.8</div>
+                    </div>
+                </div>
+                
+                <div class="search-domains">
+                    <h4>Current Search Domain Sequence:</h4>
+                    <div class="domain-list" id="domain-list">
+                        <!-- Populated by JavaScript -->
+                    </div>
                 </div>
             </section>
+            
             <section class="terminal-panel">
-                <header class="terminal-header">DNS Resolution Log</header>
-                <div class="terminal-content" id="terminal-content"></div>
+                <header class="terminal-header">
+                    <span>DNS Resolution Analysis</span>
+                    <span class="mode-indicator default" id="mode-indicator">Default Mode</span>
+                </header>
+                <div class="terminal-content" id="terminal-content">
+                    <div class="terminal-line">
+                        <span class="output info">💡 Select a scenario and click "Test Default Mode" or "Test with Autopath"</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="output info">🎯 Watch how autopath eliminates unnecessary DNS queries and reduces latency</span>
+                    </div>
+                </div>
             </section>
         </main>
+
+        <div class="usage-stats">
+            <span id="connectionStatus">🔄 Connecting to global stats...</span> •
+            <span class="highlight" id="totalResolutions">0</span> total DNS resolutions 
+            • <span class="highlight" id="resolutionsToday">0</span> today 
+            • Last resolution: <span class="highlight" id="lastResolution">Never</span>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-links">
+                <a href="https://demos.learningdevops.com/" class="footer-link back">
+                    ← Back to Demos
+                </a>
+                <a href="https://www.linkedin.com/in/techwith-rajesh/" class="footer-link linkedin" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                    LinkedIn
+                </a>
+                <a href="https://medium.com/@rk90229/solving-kubernetes-dns-performance-issues-with-coredns-autopath-plugin-3650eb0c477a" class="footer-link blog" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    Blog Article
+                </a>
+            </div>
+            <div class="footer-credits">
+                Built with CoreDNS • Kubernetes • DNS • Netlify Functions
+            </div>
+        </div>
     </div>
 
     <script>
     document.addEventListener('DOMContentLoaded', () => {
-        // --- 1. STATE MANAGEMENT ---
+        // --- STATE MANAGEMENT ---
         const appState = {
-            isAutopath: false,
-            isResolving: false,
-            domain: 'google.com',
-            log: [],
+            scenario: 'external-domain',
+            isRunning: false,
+            currentMode: 'default',
+            metrics: {
+                queries: 0,
+                latency: 0,
+                nxdomain: 0,
+                efficiency: 0
+            }
         };
 
-        // --- 2. DOM ELEMENTS ---
+        // Global stats tracking
+        let usageStats = {
+            totalResolutions: 0,
+            resolutionsToday: 0,
+            lastResolution: null
+        };
+
+        // Auto-detect Netlify function endpoint
+        const isNetlify = window.location.hostname.includes('netlify.app');
+        const API_BASE = isNetlify 
+            ? `${window.location.origin}/.netlify/functions`
+            : 'https://aesthetic-croissant-a06c3f.netlify.app/.netlify/functions';
+
+        // Scenario configurations
+        const scenarios = {
+            'external-domain': {
+                name: 'External Domain Resolution',
+                domain: 'google.com',
+                description: 'Resolving external domains shows the biggest autopath benefit - eliminates 2 unnecessary NXDOMAIN queries',
+                searchDomains: [
+                    'google.com.default.svc.cluster.local',
+                    'google.com.svc.cluster.local', 
+                    'google.com.cluster.local',
+                    'google.com'
+                ],
+                autopathBehavior: 'cname-redirect'
+            },
+            'service-name': {
+                name: 'Internal Service Resolution', 
+                domain: 'frontend',
+                description: 'Internal services resolve faster but autopath still provides some benefit through smarter caching',
+                searchDomains: [
+                    'frontend.default.svc.cluster.local',
+                    'frontend.svc.cluster.local',
+                    'frontend.cluster.local', 
+                    'frontend'
+                ],
+                autopathBehavior: 'direct-hit'
+            },
+            'fqdn-service': {
+                name: 'Fully Qualified Service Name',
+                domain: 'api.production.svc.cluster.local',
+                description: 'FQDN services have minimal benefit from autopath since they resolve immediately',
+                searchDomains: [
+                    'api.production.svc.cluster.local'
+                ],
+                autopathBehavior: 'immediate'
+            },
+            'mixed-workload': {
+                name: 'Mixed Workload Simulation',
+                domain: 'multiple domains',
+                description: 'Real workloads mix internal services, external APIs, and FQDNs - autopath shines here',
+                searchDomains: ['Simulating 10 mixed domains...'],
+                autopathBehavior: 'mixed'
+            }
+        };
+
+        // DOM Elements
         const elements = {
+            scenarioSelect: document.getElementById('scenario-select'),
+            scenarioInfo: document.getElementById('scenario-info'),
             btnDefault: document.getElementById('btn-default'),
             btnAutopath: document.getElementById('btn-autopath'),
-            btnResolve: document.getElementById('btn-resolve'),
-            domainInput: document.getElementById('domain-input'),
             terminalContent: document.getElementById('terminal-content'),
-            diagramContainer: document.getElementById('diagram-container'),
-            pod: document.querySelector('.pod'),
-            coredns: document.querySelector('.coredns'),
-            externalDns: document.querySelector('.external-dns'),
-        };
-
-        // --- 3. RENDER LOGIC (Single source of truth for UI updates) ---
-        const render = () => {
-            elements.btnDefault.classList.toggle('active', !appState.isAutopath);
-            elements.btnAutopath.classList.toggle('active', appState.isAutopath);
-            elements.btnResolve.disabled = appState.isResolving;
-            elements.btnResolve.textContent = appState.isResolving ? 'Resolving...' : 'Resolve DNS';
-
-            elements.terminalContent.innerHTML = '';
-            appState.log.forEach(line => {
-                const el = document.createElement('div');
-                el.className = `terminal-line`;
-                el.innerHTML = `<span class="${line.type}">${line.text}</span>`;
-                elements.terminalContent.appendChild(el);
-            });
-            elements.terminalContent.scrollTop = elements.terminalContent.scrollHeight;
-        };
-
-        // --- 4. SIMULATION & ANIMATION LOGIC ---
-        const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-        const drawArrow = (fromEl, toEl, type, text) => {
-            const containerRect = elements.diagramContainer.getBoundingClientRect();
-            const fromRect = fromEl.getBoundingClientRect();
-            const toRect = toEl.getBoundingClientRect();
-
-            // Calculate positions ensuring arrow doesn't overlap the element itself
-            const angle = Math.atan2(toRect.top - fromRect.top, toRect.left - fromRect.left);
-            const startX = fromRect.left + fromRect.width / 2 - containerRect.left + Math.cos(angle) * 50;
-            const startY = fromRect.top + fromRect.height / 2 - containerRect.top + Math.sin(angle) * 50;
-            const endX = toRect.left + toRect.width / 2 - containerRect.left - Math.cos(angle) * 60;
-            const endY = toRect.top + toRect.height / 2 - containerRect.top - Math.sin(angle) * 60;
-            
-            const arrowId = `arrow-${Date.now()}`;
-            const arrowHTML = `
-                <svg id="${arrowId}" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0;">
-                    <path d="M ${startX} ${startY} L ${endX} ${endY}" class="arrow-path ${type}" marker-end="url(#arrowhead-${type})"></path>
-                    <text x="${(startX + endX) / 2}" y="${(startY + endY) / 2 - 10}" class="arrow-text ${type}">${text}</text>
-                </svg>
-            `;
-            elements.diagramContainer.insertAdjacentHTML('beforeend', arrowHTML);
-            
-            const arrowEl = document.getElementById(arrowId);
-            setTimeout(() => arrowEl.style.opacity = 1, 50); // Fade in
-            return arrowEl;
-        };
-        
-        const typeCommand = async (text) => {
-            const line = document.createElement('div');
-            line.className = 'terminal-line';
-            line.innerHTML = `<span class="prompt">$ </span><span class="command"></span>`;
-            elements.terminalContent.appendChild(line);
-            const commandEl = line.querySelector('.command');
-            for (let i = 0; i < text.length; i++) {
-                commandEl.textContent += text[i];
-                await sleep(25);
+            domainList: document.getElementById('domain-list'),
+            modeIndicator: document.getElementById('mode-indicator'),
+            podStatus: document.getElementById('pod-status'),
+            corednsStatus: document.getElementById('coredns-status'),
+            upstreamStatus: document.getElementById('upstream-status'),
+            metrics: {
+                queries: document.getElementById('metric-queries'),
+                latency: document.getElementById('metric-latency'),
+                nxdomain: document.getElementById('metric-nxdomain'),
+                efficiency: document.getElementById('metric-efficiency')
+            },
+            usage: {
+                connectionStatus: document.getElementById('connectionStatus'),
+                totalResolutions: document.getElementById('totalResolutions'),
+                resolutionsToday: document.getElementById('resolutionsToday'),
+                lastResolution: document.getElementById('lastResolution'),
             }
         };
 
-        const simulateQuery = async (query, { type, latency }) => {
-            await typeCommand(`dig ${query}`);
-            const arrow = drawArrow(elements.pod, elements.coredns, type, 'Query');
-            await sleep(latency);
-            appState.log.push({ text: type === 'success' ? `✅ SUCCESS (${latency}ms)` : `❌ NXDOMAIN (${latency}ms)`, type: `output ${type}` });
-            render();
-            arrow.style.opacity = 0;
-            setTimeout(() => arrow.remove(), 300);
-        };
+        // --- STATS FUNCTIONS ---
+        async function fetchStats() {
+            try {
+                const response = await fetch(`${API_BASE}/coredns-autopath-stats`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                usageStats = {
+                    totalResolutions: data.totalResolutions || 0,
+                    resolutionsToday: data.resolutionsToday || 0,
+                    lastResolution: null
+                };
+                
+                if (data.lastResolution) {
+                    if (data.lastResolution._seconds) {
+                        usageStats.lastResolution = new Date(data.lastResolution._seconds * 1000);
+                    } else if (data.lastResolution.seconds) {
+                        usageStats.lastResolution = new Date(data.lastResolution.seconds * 1000);
+                    }
+                }
+                
+                updateUsageDisplay();
+                return true;
+            } catch (error) {
+                loadLocalStats();
+                return false;
+            }
+        }
         
-        const runSimulation = async () => {
-            appState.isResolving = true;
-            appState.log = [{ text: `Resolving '${appState.domain}' with ${appState.isAutopath ? 'Autopath' : 'Default'}...`, type: 'output info' }];
-            render();
-
-            const isExternal = appState.domain.includes('.');
-            const searchDomains = [`${appState.domain}.default.svc.cluster.local`, `${appState.domain}.svc.cluster.local`, appState.domain];
-
-            if (appState.isAutopath && isExternal) {
-                await typeCommand(`dig ${searchDomains[0]}`);
-                const arrow1 = drawArrow(elements.pod, elements.coredns, 'smart', 'Smart Query');
-                await sleep(500);
-                appState.log.push({ text: `🧠 Autopath CNAME response received!`, type: 'output info' });
-                render();
-                const arrow2 = drawArrow(elements.coredns, elements.externalDns, 'success', 'External Lookup');
-                await sleep(800);
-                appState.log.push({ text: `✅ SUCCESS (800ms)`, type: 'output success' });
-                render();
-                [arrow1, arrow2].forEach(a => a.style.opacity = 0);
-                setTimeout(() => [arrow1, arrow2].forEach(a => a.remove()), 300);
-
-            } else { // Default mode or internal domain
-                for (let i = 0; i < searchDomains.length; i++) {
-                    const isLast = i === searchDomains.length - 1;
-                    const shouldSucceed = isLast || (!isExternal && i === 0);
-                    await simulateQuery(searchDomains[i], { type: shouldSucceed ? 'success' : 'error', latency: 800 });
-                    if (shouldSucceed) break;
+        async function incrementStats() {
+            try {
+                const response = await fetch(`${API_BASE}/coredns-autopath-stats`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                usageStats = {
+                    totalResolutions: data.totalResolutions || 0,
+                    resolutionsToday: data.resolutionsToday || 0,
+                    lastResolution: null
+                };
+                
+                if (data.lastResolution) {
+                    if (data.lastResolution._seconds) {
+                        usageStats.lastResolution = new Date(data.lastResolution._seconds * 1000);
+                    } else if (data.lastResolution.seconds) {
+                        usageStats.lastResolution = new Date(data.lastResolution.seconds * 1000);
+                    }
+                }
+                
+                updateUsageDisplay();
+                return true;
+            } catch (error) {
+                incrementLocalStats();
+                return false;
+            }
+        }
+        
+        function loadLocalStats() {
+            const stored = localStorage.getItem('coreDNSUsageStats');
+            if (stored) {
+                usageStats = JSON.parse(stored);
+                if (usageStats.lastResolution) {
+                    usageStats.lastResolution = new Date(usageStats.lastResolution);
                 }
             }
-
-            appState.isResolving = false;
-            render();
-        };
-
-        // --- 5. EVENT HANDLERS & INITIALIZATION ---
-        elements.btnDefault.addEventListener('click', () => { appState.isAutopath = false; render(); });
-        elements.btnAutopath.addEventListener('click', () => { appState.isAutopath = true; render(); });
-        elements.btnResolve.addEventListener('click', () => {
-            appState.domain = elements.domainInput.value.trim() || 'google.com';
-            runSimulation();
-        });
+            updateUsageDisplay();
+        }
         
-        appState.log.push({ text: 'Demo initialized. Click "Resolve DNS" to start.', type: 'output info' });
-        render();
+        function incrementLocalStats() {
+            usageStats.totalResolutions++;
+            usageStats.resolutionsToday++;
+            usageStats.lastResolution = new Date();
+            localStorage.setItem('coreDNSUsageStats', JSON.stringify(usageStats));
+            updateUsageDisplay();
+        }
+        
+        function updateUsageDisplay() {
+            elements.usage.totalResolutions.textContent = usageStats.totalResolutions.toLocaleString();
+            elements.usage.resolutionsToday.textContent = usageStats.resolutionsToday;
+            
+            if (API_BASE.includes('netlify')) {
+                elements.usage.connectionStatus.innerHTML = '🔒 <strong>Secure Global Stats</strong>';
+                elements.usage.connectionStatus.style.color = '#48bb78';
+            } else {
+                elements.usage.connectionStatus.innerHTML = '📱 <strong>Local Mode</strong>';
+                elements.usage.connectionStatus.style.color = '#f6e05e';
+            }
+            
+            if (usageStats.lastResolution && usageStats.lastResolution instanceof Date && !isNaN(usageStats.lastResolution)) {
+                const lastTime = usageStats.lastResolution;
+                const now = new Date();
+                const diffMinutes = Math.floor((now - lastTime) / 60000);
+                
+                let timeText;
+                if (diffMinutes < 1) {
+                    timeText = 'Just now';
+                } else if (diffMinutes < 60) {
+                    timeText = `${diffMinutes}m ago`;
+                } else if (diffMinutes < 1440) {
+                    timeText = `${Math.floor(diffMinutes / 60)}h ago`;
+                } else {
+                    timeText = lastTime.toLocaleDateString();
+                }
+                
+                elements.usage.lastResolution.textContent = timeText;
+            } else {
+                elements.usage.lastResolution.textContent = 'Never';
+            }
+        }
+
+        // --- UI FUNCTIONS ---
+        function updateScenarioInfo() {
+            const scenario = scenarios[appState.scenario];
+            elements.scenarioInfo.textContent = scenario.description;
+            updateSearchDomains();
+        }
+
+        function updateSearchDomains() {
+            const scenario = scenarios[appState.scenario];
+            elements.domainList.innerHTML = scenario.searchDomains
+                .map(domain => `<div class="domain-item">${domain}</div>`)
+                .join('');
+        }
+
+        function updateMetrics() {
+            elements.metrics.queries.querySelector('.metric-value').textContent = appState.metrics.queries;
+            elements.metrics.latency.querySelector('.metric-value').textContent = appState.metrics.latency + 'ms';
+            elements.metrics.nxdomain.querySelector('.metric-value').textContent = appState.metrics.nxdomain;
+            elements.metrics.efficiency.querySelector('.metric-value').textContent = appState.metrics.efficiency + '%';
+
+            // Highlight improved metrics
+            Object.keys(elements.metrics).forEach(key => {
+                elements.metrics[key].classList.remove('highlight');
+            });
+
+            if (appState.currentMode === 'autopath') {
+                if (appState.metrics.efficiency > 70) elements.metrics.efficiency.classList.add('highlight');
+                if (appState.metrics.nxdomain === 0) elements.metrics.nxdomain.classList.add('highlight');
+            }
+        }
+
+        function addTerminalLine(text, type = 'info', includeTimestamp = true) {
+            const timestamp = includeTimestamp ? new Date().toLocaleTimeString() : '';
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.innerHTML = `
+                ${timestamp ? `<span class="timestamp">[${timestamp}]</span>` : ''}
+                <span class="output ${type}">${text}</span>
+            `;
+            elements.terminalContent.appendChild(line);
+            elements.terminalContent.scrollTop = elements.terminalContent.scrollHeight;
+        }
+
+        function updateComponentStatus(component, status, type = 'info') {
+            const statusColors = {
+                info: '#63b3ed',
+                success: '#38a169', 
+                warning: '#d69e2e',
+                error: '#c53030'
+            };
+            
+            elements[component + 'Status'].textContent = status;
+            elements[component + 'Status'].style.color = statusColors[type];
+        }
+
+        // --- SIMULATION FUNCTIONS ---
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        async function simulateDNSQuery(domain, shouldSucceed, latency = 150) {
+            // Update domain visual state
+            const domainElement = Array.from(elements.domainList.children)
+                .find(el => el.textContent === domain);
+            
+            if (domainElement) {
+                domainElement.classList.add('querying');
+            }
+
+            addTerminalLine(`🔍 Querying: ${domain}`, 'info');
+            updateComponentStatus('coredns', 'Processing...', 'warning');
+            
+            await sleep(latency);
+            
+            if (shouldSucceed) {
+                addTerminalLine(`✅ SUCCESS: ${domain} → IP address resolved`, 'success');
+                if (domainElement) {
+                    domainElement.classList.remove('querying');
+                    domainElement.classList.add('success');
+                }
+                updateComponentStatus('coredns', 'Query successful', 'success');
+                return true;
+            } else {
+                addTerminalLine(`❌ NXDOMAIN: ${domain} (not found)`, 'error');
+                if (domainElement) {
+                    domainElement.classList.remove('querying');
+                    domainElement.classList.add('failed');
+                }
+                appState.metrics.nxdomain++;
+                return false;
+            }
+        }
+
+        async function runDefaultMode() {
+            appState.currentMode = 'default';
+            elements.modeIndicator.textContent = 'Default Mode';
+            elements.modeIndicator.className = 'mode-indicator default';
+            
+            const scenario = scenarios[appState.scenario];
+            addTerminalLine(`🚀 Starting DNS resolution for: ${scenario.domain}`, 'info');
+            addTerminalLine(`📋 Mode: Default (will try all search domains sequentially)`, 'warning');
+            
+            appState.metrics = { queries: 0, latency: 0, nxdomain: 0, efficiency: 0 };
+            
+            if (appState.scenario === 'mixed-workload') {
+                await simulateMixedWorkload(false);
+            } else {
+                await simulateStandardResolution(false);
+            }
+            
+            updateMetrics();
+            addTerminalLine(`📊 Resolution complete - see performance metrics above`, 'info');
+        }
+
+        async function runAutopathMode() {
+            appState.currentMode = 'autopath';
+            elements.modeIndicator.textContent = 'Autopath Mode';
+            elements.modeIndicator.className = 'mode-indicator autopath';
+            
+            const scenario = scenarios[appState.scenario];
+            addTerminalLine(`🚀 Starting DNS resolution for: ${scenario.domain}`, 'info');
+            addTerminalLine(`⚡ Mode: Autopath (intelligent query optimization enabled)`, 'success');
+            
+            appState.metrics = { queries: 0, latency: 0, nxdomain: 0, efficiency: 0 };
+            
+            if (appState.scenario === 'mixed-workload') {
+                await simulateMixedWorkload(true);
+            } else {
+                await simulateStandardResolution(true);
+            }
+            
+            updateMetrics();
+            addTerminalLine(`📊 Resolution complete - notice the improved efficiency!`, 'success');
+        }
+
+        async function simulateStandardResolution(useAutopath) {
+            const scenario = scenarios[appState.scenario];
+            const domains = scenario.searchDomains;
+            
+            // Reset domain visual states
+            elements.domainList.querySelectorAll('.domain-item').forEach(el => {
+                el.className = 'domain-item';
+            });
+
+            if (useAutopath && scenario.autopathBehavior === 'cname-redirect') {
+                // Autopath for external domains - skip internal search domains
+                addTerminalLine(`🧠 Autopath detected external domain pattern`, 'info');
+                addTerminalLine(`⚡ Skipping internal search domains, using CNAME redirect`, 'success');
+                
+                const success = await simulateDNSQuery(domains[0], false, 100); // Quick CNAME check
+                appState.metrics.queries++;
+                appState.metrics.latency += 100;
+                
+                if (!success) {
+                    addTerminalLine(`🔄 CNAME redirect to upstream DNS`, 'info');
+                    updateComponentStatus('upstream', 'Resolving...', 'warning');
+                    await simulateDNSQuery(scenario.domain, true, 120);
+                    appState.metrics.queries++;
+                    appState.metrics.latency += 120;
+                    updateComponentStatus('upstream', '8.8.8.8', 'success');
+                }
+                
+                appState.metrics.efficiency = 90;
+                
+            } else if (useAutopath && scenario.autopathBehavior === 'direct-hit') {
+                // Internal service with autopath
+                addTerminalLine(`🎯 Autopath optimized internal service resolution`, 'success');
+                await simulateDNSQuery(domains[0], true, 80);
+                appState.metrics.queries++;
+                appState.metrics.latency += 80;
+                appState.metrics.efficiency = 95;
+                
+            } else if (useAutopath && scenario.autopathBehavior === 'immediate') {
+                // FQDN with autopath
+                addTerminalLine(`⚡ FQDN detected - immediate resolution`, 'success');
+                await simulateDNSQuery(domains[0], true, 60);
+                appState.metrics.queries++;
+                appState.metrics.latency += 60;
+                appState.metrics.efficiency = 100;
+                
+            } else {
+                // Default mode - try each domain sequentially
+                for (let i = 0; i < domains.length; i++) {
+                    const domain = domains[i];
+                    const isLast = i === domains.length - 1;
+                    const shouldSucceed = isLast || (appState.scenario === 'service-name' && i === 0);
+                    
+                    const success = await simulateDNSQuery(domain, shouldSucceed, 150);
+                    appState.metrics.queries++;
+                    appState.metrics.latency += 150;
+                    
+                    if (success) {
+                        appState.metrics.efficiency = Math.round(((i + 1) / domains.length) * 100);
+                        break;
+                    }
+                    
+                    await sleep(50); // Brief pause between queries
+                }
+            }
+            
+            updateComponentStatus('coredns', 'Listening', 'info');
+        }
+
+        async function simulateMixedWorkload(useAutopath) {
+            addTerminalLine(`🔄 Simulating realistic workload: 10 mixed domain resolutions`, 'info');
+            
+            const mixedDomains = [
+                { name: 'frontend', type: 'internal', searchDomains: 1 },
+                { name: 'api.github.com', type: 'external', searchDomains: 4 },
+                { name: 'backend.prod.svc.cluster.local', type: 'fqdn', searchDomains: 1 },
+                { name: 'redis', type: 'internal', searchDomains: 1 },
+                { name: 'cdn.jsdelivr.net', type: 'external', searchDomains: 4 },
+                { name: 'database', type: 'internal', searchDomains: 1 },
+                { name: 'api.stripe.com', type: 'external', searchDomains: 4 },
+                { name: 'monitoring.default.svc.cluster.local', type: 'fqdn', searchDomains: 1 },
+                { name: 'cache', type: 'internal', searchDomains: 1 },
+                { name: 'fonts.googleapis.com', type: 'external', searchDomains: 4 }
+            ];
+
+            for (const domain of mixedDomains) {
+                if (useAutopath) {
+                    // Autopath optimization
+                    if (domain.type === 'external') {
+                        addTerminalLine(`⚡ ${domain.name} - autopath CNAME redirect`, 'success');
+                        appState.metrics.queries += 2; // CNAME + upstream
+                        appState.metrics.latency += 200;
+                    } else {
+                        addTerminalLine(`🎯 ${domain.name} - direct resolution`, 'success');
+                        appState.metrics.queries += 1;
+                        appState.metrics.latency += 80;
+                    }
+                } else {
+                    // Default mode
+                    addTerminalLine(`🔍 ${domain.name} - trying ${domain.searchDomains} search domains`, 'warning');
+                    appState.metrics.queries += domain.searchDomains;
+                    appState.metrics.latency += domain.searchDomains * 150;
+                    
+                    if (domain.type === 'external') {
+                        appState.metrics.nxdomain += domain.searchDomains - 1;
+                    }
+                }
+                
+                await sleep(200);
+            }
+
+            if (useAutopath) {
+                appState.metrics.efficiency = 85;
+                addTerminalLine(`✅ Autopath saved ${useAutopath ? '60%' : '0%'} of DNS queries!`, 'success');
+            } else {
+                appState.metrics.efficiency = 35;
+                addTerminalLine(`⚠️  Default mode generated many unnecessary NXDOMAIN queries`, 'warning');
+            }
+        }
+
+        // --- EVENT HANDLERS ---
+        elements.scenarioSelect.addEventListener('change', (e) => {
+            appState.scenario = e.target.value;
+            updateScenarioInfo();
+        });
+
+        elements.btnDefault.addEventListener('click', async () => {
+            if (appState.isRunning) return;
+            appState.isRunning = true;
+            elements.btnDefault.disabled = true;
+            elements.btnAutopath.disabled = true;
+            
+            elements.terminalContent.innerHTML = '';
+            await incrementStats();
+            await runDefaultMode();
+            
+            elements.btnDefault.disabled = false;
+            elements.btnAutopath.disabled = false;
+            appState.isRunning = false;
+        });
+
+        elements.btnAutopath.addEventListener('click', async () => {
+            if (appState.isRunning) return;
+            appState.isRunning = true;
+            elements.btnDefault.disabled = true;
+            elements.btnAutopath.disabled = true;
+            
+            elements.terminalContent.innerHTML = '';
+            await incrementStats();
+            await runAutopathMode();
+            
+            elements.btnDefault.disabled = false;
+            elements.btnAutopath.disabled = false;
+            appState.isRunning = false;
+        });
+
+        // --- INITIALIZATION ---
+        fetchStats().then(() => {
+            updateScenarioInfo();
+            updateMetrics();
+            
+            setInterval(async () => {
+                if (!appState.isRunning) {
+                    await fetchStats();
+                }
+            }, 30000);
+        });
     });
     </script>
 </body>
