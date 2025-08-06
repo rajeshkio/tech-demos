@@ -1,0 +1,2245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Kubernetes PKI Learning Lab</title>
+    <meta name="description" content="An interactive hands-on lab for learning Kubernetes certificate management through breaking and fixing real PKI scenarios.">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #2d3748;
+            --success-color: #38a169;
+            --error-color: #c53030;
+            --warning-color: #d69e2e;
+            --bg-color: #f8fafc;
+            --panel-bg: white;
+            --terminal-bg: #1a202c;
+            --text-dark: #2d3748;
+            --text-light: #e2e8f0;
+            --text-muted: #718096;
+            --border-color: #e2e8f0;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-sans);
+            background: linear-gradient(135deg, var(--primary-color) 0%, #764ba2 100%);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: auto;
+            background: var(--bg-color);
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 4rem); /* Account for body padding */
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #4a5568 100%);
+            color: white;
+            padding: 2.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .page-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--primary-color), transparent);
+            animation: scan 3s linear infinite;
+        }
+
+        @keyframes scan {
+            0% { left: -100%; }
+            100% { left: 100%; }
+        }
+        
+        .page-header h1 { 
+            font-size: 2.5rem; 
+            margin-bottom: 0.5rem;
+            background: linear-gradient(45deg, #fff, #e6fffa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .page-header p { 
+            font-size: 1.1rem; 
+            opacity: 0.9; 
+            margin-bottom: 1rem;
+        }
+
+        .feature-badges {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .badge.safe { background: rgba(56, 161, 105, 0.2); color: #68d391; }
+        .badge.interactive { background: rgba(102, 126, 234, 0.2); color: #90cdf4; }
+        .badge.production { background: rgba(237, 137, 54, 0.2); color: #f6ad55; }
+        .controls-bar {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--panel-bg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .scenario-controls {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+            flex-grow: 1;
+            flex-wrap: wrap;
+        }
+
+        .scenario-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .scenario-selector label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .scenario-selector select {
+            padding: 10px 14px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            background: white;
+            min-width: 250px;
+            transition: all 0.2s ease;
+        }
+
+        .scenario-selector select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .scenario-info {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e6fffa 100%);
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            max-width: 400px;
+            flex-grow: 1;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .btn { 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 8px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.3s ease; 
+            font-size: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn-primary { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-danger { 
+            background: linear-gradient(135deg, #fc8181 0%, #f56565 100%); 
+            color: white; 
+            box-shadow: 0 4px 15px rgba(252, 129, 129, 0.3);
+        }
+
+        .btn-success { 
+            background: linear-gradient(135deg, #68d391 0%, #48bb78 100%); 
+            color: white; 
+            box-shadow: 0 4px 15px rgba(104, 211, 145, 0.3);
+        }
+
+        .btn-small { 
+            padding: 6px 12px; 
+            font-size: 0.8rem;
+        }
+
+        .btn:hover:not(:disabled) { 
+            transform: translateY(-2px); 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15); 
+        }
+
+        .btn:disabled { 
+            background: #bdc3c7; 
+            cursor: not-allowed; 
+            transform: none;
+            box-shadow: none;
+        }
+
+        .performance-bar {
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #e6fffa 0%, #f0fff4 100%);
+            border-bottom: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+        }
+
+        .metric {
+            text-align: center;
+            padding: 1rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .metric::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .metric.highlight::before {
+            background: linear-gradient(90deg, var(--success-color), #68d391);
+        }
+
+        .metric.danger::before {
+            background: linear-gradient(90deg, var(--error-color), #fc8181);
+        }
+
+        .metric-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .main-content { 
+            display: grid; 
+            grid-template-columns: 300px 1fr; 
+            height: calc(100vh - 280px);
+            max-height: 750px;
+            flex: 1; /* Take remaining space, pushing footer down */
+            overflow: hidden;
+        }
+
+        .cluster-panel { 
+            padding: 1rem; 
+            border-right: 1px solid var(--border-color); 
+            background: #fbfcfe;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            min-height: 0; /* Allow flexbox to shrink */
+        }
+
+        .certificates-list {
+            flex-shrink: 0; /* Don't shrink the certificate list */
+        }
+
+        .certificates-list h3 {
+            font-size: 1.1rem;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .cluster-status-mini {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%);
+            border-radius: 6px;
+            font-size: 0.8rem;
+            margin-bottom: 1rem;
+            border-left: 3px solid var(--success-color);
+            transition: all 0.3s ease;
+        }
+
+        .cluster-status-mini.unhealthy {
+            background: linear-gradient(135deg, #fed7d7 0%, #fef5e7 100%);
+            border-left-color: var(--error-color);
+        }
+
+        .status-icon {
+            font-size: 1rem;
+        }
+
+        .status-text {
+            font-weight: 500;
+            color: var(--text-dark);
+        }
+
+        .certificate-details {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: linear-gradient(135deg, #f8fafc 0%, #e6fffa 100%);
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--primary-color);
+            border: 2px solid #e2e8f0;
+            flex-shrink: 0; /* Don't shrink when space is tight */
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .certificate-details h4 {
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .cert-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        .cert-detail-label {
+            font-weight: 600;
+            color: var(--text-muted);
+            min-width: 80px;
+        }
+
+        .cert-detail-value {
+            flex: 1;
+            text-align: right;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            word-break: break-all;
+        }
+
+        .cert-detail-value.healthy {
+            color: var(--success-color);
+        }
+
+        .cert-detail-value.expired {
+            color: var(--error-color);
+            font-weight: 600;
+        }
+
+        .certificate-card {
+            margin-bottom: 0.5rem;
+            padding: 0.75rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .certificate-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .certificate-card:hover::before {
+            left: 100%;
+        }
+
+        .certificate-card.healthy {
+            background: linear-gradient(135deg, #f0fff4 0%, #e6fffa 100%);
+            border-color: var(--success-color);
+        }
+
+        .certificate-card.broken {
+            background: linear-gradient(135deg, #fed7d7 0%, #fef5e7 100%);
+            border-color: var(--error-color);
+            animation: shake 0.5s ease-in-out;
+        }
+
+        .certificate-card.selected {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+
+        .cert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .cert-icon {
+            font-size: 1.5rem;
+            margin-right: 0.75rem;
+        }
+
+        .cert-name {
+            font-weight: 600;
+            color: var(--text-dark);
+            flex: 1;
+        }
+
+        .cert-status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-left: 0.5rem;
+        }
+
+        .cert-status-indicator.healthy {
+            background: var(--success-color);
+            box-shadow: 0 0 10px rgba(56, 161, 105, 0.5);
+        }
+
+        .cert-status-indicator.broken {
+            background: var(--error-color);
+            box-shadow: 0 0 10px rgba(197, 48, 48, 0.5);
+        }
+
+        .cert-file {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+        
+        .cert-status {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+
+        .cert-status.healthy {
+            color: var(--success-color);
+        }
+
+        .cert-status.broken {
+            color: var(--error-color);
+        }
+
+        .cert-actions {
+            margin-top: 0.75rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .investigation-note {
+            font-size: 0.7rem;
+            color: var(--warning-color);
+            background: #fef5e7;
+            padding: 0.5rem;
+            border-radius: 4px;
+            border-left: 3px solid var(--warning-color);
+            font-style: italic;
+        }
+
+        .cert-details-expandable {
+            margin-top: 0.75rem;
+            border-top: 1px solid rgba(0,0,0,0.1);
+            padding-top: 0.75rem;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+                padding-top: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 200px;
+                padding-top: 0.75rem;
+            }
+        }
+
+        .cert-details-content {
+            font-size: 0.75rem;
+        }
+
+        .cert-detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.4rem;
+        }
+
+        .cert-detail-label {
+            font-weight: 600;
+            color: var(--text-muted);
+            min-width: 60px;
+            font-size: 0.7rem;
+        }
+
+        .cert-detail-value {
+            flex: 1;
+            text-align: right;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            word-break: break-all;
+            line-height: 1.2;
+        }
+
+        .cert-detail-value.healthy {
+            color: var(--success-color);
+        }
+
+        .cert-detail-value.expired {
+            color: var(--error-color);
+            font-weight: 600;
+        }
+
+        .cert-details-description {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid rgba(0,0,0,0.05);
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            line-height: 1.3;
+            font-style: italic;
+        }
+
+        .usage-stats {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 13px;
+            color: #4a5568;
+        }
+        
+        .usage-stats .highlight {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .footer {
+            padding: 20px 30px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+            position: relative;
+            z-index: 5;
+            margin-top: auto; /* Push footer to bottom */
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .footer-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #4a5568;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .footer-link:hover {
+            background: #edf2f7;
+            color: #2d3748;
+            transform: translateY(-1px);
+        }
+        
+        .footer-link.linkedin:hover {
+            background: #0077b5;
+            color: white;
+        }
+        
+        .footer-link.back:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .footer-link.blog:hover {
+            background: #f56565;
+            color: white;
+        }
+        
+        .footer-credits {
+            font-size: 13px;
+            color: #718096;
+        }
+
+        @media (max-width: 900px) {
+            .main-container { grid-template-columns: 1fr; }
+            .cluster-panel { border-right: none; border-bottom: 1px solid var(--border-color); margin-bottom: 0; }
+            .footer {
+                flex-direction: column;
+                text-align: center;
+            }
+            .footer-links {
+                justify-content: center;
+            }
+        }
+
+        .terminal-panel { 
+            background: var(--terminal-bg); 
+            display: flex; 
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .current-step-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 1rem;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+            border-bottom: 2px solid #4a5568;
+        }
+
+        .step-content {
+            font-size: 0.95rem;
+            line-height: 1.4;
+        }
+
+        .step-content .step-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: #e6fffa;
+        }
+
+        .step-content .step-instruction {
+            margin-bottom: 0.5rem;
+        }
+
+        .step-content .step-commands {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            font-family: var(--font-mono);
+            background: rgba(255,255,255,0.1);
+            padding: 0.5rem;
+            border-radius: 4px;
+            margin-top: 0.5rem;
+        }
+
+        .step-progress {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+
+        .step-progress .progress-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .step-progress .progress-dot.completed {
+            background: #68d391;
+        }
+
+        .step-progress .progress-dot.active {
+            background: #ffd700;
+            box-shadow: 0 0 8px #ffd700;
+        }
+        
+        .terminal-header { 
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #4a5568; 
+            color: var(--text-muted); 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #2d3748;
+        }
+
+        .terminal-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-weight: 600;
+        }
+
+        .terminal-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .terminal-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .terminal-dot.red { background: #ff5f56; }
+        .terminal-dot.yellow { background: #ffbd2e; }
+        .terminal-dot.green { background: #27ca3f; }
+        
+        .terminal-content { 
+            flex: 1;
+            padding: 1rem;
+            color: var(--text-light); 
+            font-family: var(--font-mono); 
+            font-size: 0.8rem; 
+            line-height: 1.4; 
+            overflow-y: auto;
+            max-height: 350px;
+        }
+
+        .terminal-line { 
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+
+        .terminal-line .timestamp {
+            color: #4a5568;
+            font-size: 0.75rem;
+            min-width: 70px;
+        }
+
+        .terminal-line .content {
+            flex: 1;
+            white-space: pre-wrap;
+            font-family: var(--font-mono);
+        }
+
+        .terminal-line .prompt { color: var(--success-color); }
+        .terminal-line .command { color: #87CEFA; }
+        .terminal-line .output.success { color: var(--success-color); }
+        .terminal-line .output.error { color: var(--error-color); }
+        .terminal-line .output.info { color: #63b3ed; }
+        .terminal-line .output.warning { color: var(--warning-color); }
+
+        .command-input-section {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #4a5568;
+            background: #2d3748;
+        }
+
+        .command-input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--terminal-bg);
+            border-radius: 6px;
+            padding: 0.75rem;
+            border: 1px solid #4a5568;
+        }
+
+        .command-prompt {
+            color: var(--success-color);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+        }
+
+        .command-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-light);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            outline: none;
+        }
+
+        .command-input::placeholder {
+            color: #4a5568;
+        }
+
+        .quick-commands {
+            margin-top: 0.75rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .quick-cmd {
+            padding: 0.25rem 0.5rem;
+            background: #4a5568;
+            color: var(--text-light);
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+
+        .quick-cmd:hover {
+            background: #667eea;
+            transform: translateY(-1px);
+        }
+
+        .explanation-panel {
+            padding: 1rem 1.5rem;
+            background: linear-gradient(135deg, #f0f4f8 0%, #e6fffa 100%);
+            border-top: 1px solid var(--border-color);
+            border-left: 4px solid var(--primary-color);
+            position: relative;
+            z-index: 10;
+            margin-bottom: 2rem; /* Add space above footer */
+        }
+
+        .explanation-content {
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: var(--text-dark);
+        }
+
+        .explanation-content h4 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-panel {
+            padding: 1rem;
+            background: white;
+            border-top: 1px solid var(--border-color);
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, #f8fafc 0%, #e6fffa 100%);
+            border-radius: 8px;
+            padding: 1rem;
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .info-card h3 {
+            color: var(--text-dark);
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .info-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .info-section h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .info-section p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.5;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-section code {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            background: #e6fffa;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            color: var(--text-dark);
+        }
+
+        .step-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .step-list li {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            padding-left: 1rem;
+            position: relative;
+        }
+
+        .step-list li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .progress-section {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .progress-section h4 {
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .progress-step {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-size: 0.8rem;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step.completed {
+            color: var(--success-color);
+            text-decoration: line-through;
+        }
+
+        .progress-step.active {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .progress-step > span {
+            width: 20px;
+            text-align: center;
+        }
+
+        @media (max-width: 1024px) {
+            .main-content { 
+                grid-template-columns: 1fr; 
+            }
+            .cluster-panel { 
+                border-right: none; 
+                border-bottom: 1px solid var(--border-color); 
+            }
+            .controls-bar { 
+                flex-direction: column; 
+                align-items: stretch;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 1rem; }
+            .page-header { padding: 1.5rem; }
+            .page-header h1 { font-size: 2rem; }
+            .performance-bar { 
+                grid-template-columns: repeat(2, 1fr); 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <h1>🧪 Kubernetes PKI Learning Lab</h1>
+            <p>Master certificate troubleshooting through hands-on breaking and fixing</p>
+            <div class="feature-badges">
+                <div class="badge safe">🛡️ Safe Sandbox</div>
+                <div class="badge interactive">⚡ Interactive Learning</div>
+                <div class="badge production">🏭 Production-Like Scenarios</div>
+            </div>
+        </header>
+
+        <section class="controls-bar">
+            <div class="scenario-controls">
+                <div class="scenario-selector">
+                    <label for="scenario-select">Select Learning Scenario:</label>
+                    <select id="scenario-select"></select>
+                </div>
+                <div class="scenario-info" id="scenario-info"></div>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button id="btn-start-scenario" class="btn btn-primary">🚀 Start Scenario</button>
+                <button id="btn-next-step" class="btn btn-success" disabled style="display: none;">➡️ Next Step</button>
+                <button id="btn-reset" class="btn btn-primary">🔄 Reset Lab</button>
+            </div>
+        </section>
+
+        <main class="main-content">
+            <section class="cluster-panel">
+                <div class="certificates-list">
+                    <h3>🔐 Certificate Components</h3>
+                    <div class="cluster-status-mini" id="cluster-status-mini">
+                        <span class="status-icon">✅</span>
+                        <span class="status-text">All certificates healthy</span>
+                    </div>
+                    <div id="certificates-container"></div>
+                </div>
+            </section>
+            
+            <section class="terminal-panel">
+                <header class="terminal-header">
+                    <div class="terminal-title">
+                        <span>🖥️</span>
+                        <span>Interactive Kubernetes Terminal</span>
+                    </div>
+                    <div class="terminal-controls">
+                        <div class="terminal-dot red"></div>
+                        <div class="terminal-dot yellow"></div>
+                        <div class="terminal-dot green"></div>
+                    </div>
+                </header>
+                
+                <div class="terminal-content" id="terminal-content"></div>
+
+                <div class="command-input-section">
+                    <div class="command-input-wrapper">
+                        <span class="command-prompt">admin@k8s-lab:~$</span>
+                        <input type="text" class="command-input" id="command-input" placeholder="Type kubectl commands here..." />
+                    </div>
+                    <div class="quick-commands" id="quick-commands-container"></div>
+                </div>
+
+                <div class="explanation-panel" id="explanation-panel" style="display: none;">
+                    <div class="explanation-content" id="explanation-content"></div>
+                </div>
+            </section>
+        </main>
+
+        <div class="usage-stats">
+            <span id="connectionStatus">🔄 Connecting to global stats...</span> •
+            <span class="highlight" id="totalTests">0</span> total PKI tests 
+            • <span class="highlight" id="testsToday">0</span> today 
+            • Last test: <span class="highlight" id="lastTest">Never</span>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-links">
+                <a href="https://demos.learningdevops.com/" class="footer-link back">
+                    ← Back to Demos
+                </a>
+                <a href="https://www.linkedin.com/in/techwith-rajesh/" class="footer-link linkedin" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                    LinkedIn
+                </a>
+                <a href="https://medium.com/@rk90229" class="footer-link blog" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    Blog Article
+                </a>
+            </div>
+            <div class="footer-credits">
+                Built with Kubernetes • PKI • SSL/TLS • Netlify Functions
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- APPLICATION STATE ---
+        const appState = {
+            selectedCertificate: null,
+            brokenCertificates: new Set(),
+            currentScenario: 'guided-learning',
+            scenarioStep: 0,
+            scenarioActive: false,
+            metrics: {
+                failedCommands: 0,
+                certificateErrors: 0,
+                impactLevel: 'None',
+                learningProgress: 0
+            },
+        };
+
+        // --- DATA DEFINITIONS ---
+        const learningScenarios = {
+            'guided-learning': {
+                name: '🎓 Guided Learning',
+                description: 'Learn about each certificate individually with step-by-step guidance.',
+                difficulty: 'Beginner',
+                timeEstimate: '10-15 minutes',
+                allowManipulation: true, // KEY FIX: Allow manual certificate manipulation
+                steps: [
+                    { title: 'Welcome to PKI Learning', instruction: 'Click on any certificate card (like API Server or Controller Manager) to select it and see detailed information about its role in the cluster.', action: 'select-certificate' },
+                    { title: 'Break the Certificate', instruction: 'Now click the red "💥 Break" button that appears below your selected certificate card. This simulates certificate expiry - a common real-world issue.', action: 'break-certificate' },
+                    { title: 'Observe the Impact', instruction: 'Run the suggested kubectl and openssl commands to see exactly how this certificate failure affects cluster operations. For Controller Manager: try creating a pod first, then investigate why it\'s stuck.', action: 'test-commands', showCommands: true },
+                    { title: 'Fix the Issue', instruction: 'Click the green "✅ Fix" button to restore the certificate. Watch how the cluster recovers and commands start working again.', action: 'fix-certificate' }
+                ]
+            },
+            'monday-crisis': {
+                name: '🚨 Monday Morning Crisis',
+                description: 'The API server certificate expired over the weekend. Investigate and fix the complete cluster outage.',
+                difficulty: 'Intermediate',
+                timeEstimate: '15-20 minutes',
+                allowManipulation: false, // No manual buttons - must diagnose and fix properly
+                autoBreakOnStart: ['api-server'], // Break only API server - most realistic scenario
+                steps: [
+                    { title: 'Crisis Report', instruction: '🚨 INCIDENT: Multiple teams reporting cluster access issues since this morning. All kubectl commands failing. Your task: investigate and restore service.', action: 'crisis-active' },
+                    { title: 'Initial Diagnosis', instruction: 'Start with basic connectivity tests. Try kubectl commands to understand the scope of the failure. Notice that ALL commands fail with certificate errors.', action: 'diagnosis-phase' },
+                    { title: 'Certificate Investigation', instruction: 'Since kubectl cannot connect, the issue is likely API server or etcd certificates. Check certificate expiry dates using openssl commands to identify which certificate has expired.', action: 'investigate-certs' },
+                    { title: 'Recovery Procedure', instruction: 'Renew the expired API server certificate using kubeadm and restart the kubelet service. Use the fix commands shown in the certificate details.', action: 'manual-recovery' }
+                ]
+            },
+            'rolling-update-crisis': {
+                name: '🔄 Rolling Update Gone Wrong', 
+                description: 'A rolling update triggered certificate rotations that broke pod scheduling. Debug the controller manager issue.',
+                difficulty: 'Advanced',
+                timeEstimate: '20-25 minutes',
+                allowManipulation: false,
+                autoBreakOnStart: ['controller'], // Break controller manager immediately
+                steps: [
+                    { title: 'Update Incident', instruction: '🔄 INCIDENT: Rolling update completed but new pods stuck in Pending. Existing workloads running fine. Investigate the pod scheduling failure.', action: 'update-incident' },
+                    { title: 'Symptom Analysis', instruction: 'Create a test deployment and observe its behavior. Check why pods are not being scheduled.', action: 'test-scheduling' },
+                    { title: 'Component Health Check', instruction: 'The pods are stuck in Pending state. Check the health of cluster components using kubectl get componentstatuses and logs.', action: 'check-components' },
+                    { title: 'Deep Dive Investigation', instruction: 'Investigate controller manager logs and certificate status. Rolling updates can sometimes cause certificate rotation issues.', action: 'controller-investigation' },
+                    { title: 'Resolution', instruction: 'Renew the controller manager certificate and restart the component to restore pod scheduling.', action: 'fix-controller' }
+                ]
+            },
+            'cascade-failure': {
+                name: '⛓️ Cascade Failure Simulation',
+                description: 'Experience how one certificate failure can trigger a cascade of issues across the cluster.',
+                difficulty: 'Expert',
+                timeEstimate: '25-30 minutes', 
+                allowManipulation: false,
+                autoBreakOnStart: ['kubelet'], // Start with kubelet failure
+                steps: [
+                    { title: 'Initial Failure', instruction: '⛓️ INCIDENT: What started as a simple kubelet certificate expiry has now cascaded into multiple failures. Investigate the chain reaction.', action: 'kubelet-investigation' },
+                    { title: 'First Wave Impact', instruction: 'The kubelet certificate expired. Check which operations are affected. Basic kubectl commands should work, but logs and exec will fail.', action: 'assess-kubelet-impact' },
+                    { title: 'Cascade Trigger', instruction: 'The kubelet failure caused monitoring to fail, which triggered automated certificate rotation that went wrong...', action: 'trigger-cascade', autoBreakAdditional: ['api-server'] },
+                    { title: 'Multi-Component Failure', instruction: 'Now both kubelet and API server certificates are expired. Notice how the failure pattern changed - now ALL kubectl commands fail.', action: 'analyze-cascade' },
+                    { title: 'Recovery Strategy', instruction: 'Plan and execute recovery in the correct order. API server must be fixed first to regain cluster access, then kubelet.', action: 'ordered-recovery' }
+                ]
+            },
+            'etcd-crisis': {
+                name: '💾 ETCD Certificate Crisis',
+                description: 'ETCD certificate expired causing connection refused errors. Learn the difference between API server and ETCD failures.',
+                difficulty: 'Advanced',
+                timeEstimate: '15-20 minutes',
+                allowManipulation: false,
+                autoBreakOnStart: ['etcd'],
+                steps: [
+                    { title: 'Database Crisis', instruction: '💾 INCIDENT: ETCD certificate has expired. API server cannot connect to the database. All kubectl commands show "connection refused".', action: 'etcd-crisis' },
+                    { title: 'Connection Refused Analysis', instruction: 'Notice the different error pattern: "connection refused" instead of certificate errors. This indicates etcd connectivity issues.', action: 'connection-analysis' },
+                    { title: 'ETCD Investigation', instruction: 'Check the etcd certificate expiry dates and renew the etcd-server certificate to restore database connectivity.', action: 'etcd-investigation' },
+                    { title: 'Recovery Verification', instruction: 'After fixing etcd certificate, verify that kubectl commands work again and the cluster is healthy.', action: 'etcd-recovery' }
+                ]
+            }
+        };
+
+        const certificateDefinitions = {
+            'api-server': { 
+                name: 'API Server', 
+                file: 'apiserver.crt', 
+                icon: '🛡️', 
+                initialStatus: 'Valid - 89 days remaining', 
+                description: 'The main TLS certificate that secures all API server communications.', 
+                subject: 'CN=kube-apiserver, O=system:masters',
+                usage: 'TLS Web Server Authentication, TLS Web Client Authentication',
+                impact: 'Complete cluster failure - ALL kubectl commands will fail with certificate errors.', 
+                observationGuide: 'When broken: All kubectl commands fail immediately. No cluster operations possible.',
+                breakEffect: 'Total cluster outage - no API access possible.', 
+                inspectCommands: [
+                    'openssl x509 -in /etc/kubernetes/pki/apiserver.crt -text -noout',
+                    'openssl x509 -in /etc/kubernetes/pki/apiserver.crt -dates -noout',
+                    'openssl x509 -in /etc/kubernetes/pki/apiserver.crt -subject -noout'
+                ],
+                errorCommands: { 
+                    'kubectl get nodes': 'Unable to connect to the server: x509: certificate has expired or is not yet valid', 
+                    'kubectl get pods -A': 'Unable to connect to the server: x509: certificate has expired',
+                    'kubectl cluster-info': 'Unable to connect to the server: x509: certificate has expired or is not yet valid',
+                    'kubectl get pods': 'Unable to connect to the server: x509: certificate has expired or is not yet valid',
+                    'kubectl logs -n kube-system kube-apiserver-control-plane': 'Unable to connect to the server: x509: certificate has expired or is not yet valid',
+                    'kubectl logs -n kube-system kube-controller-manager-control-plane': 'Unable to connect to the server: x509: certificate has expired or is not yet valid',
+                    'kubectl get events -n kube-system': 'Unable to connect to the server: x509: certificate has expired or is not yet valid',
+                    'kubectl describe node control-plane': 'Unable to connect to the server: x509: certificate has expired or is not yet valid',
+                    'kubectl get componentstatuses': 'Unable to connect to the server: x509: certificate has expired or is not yet valid',
+                    'kubectl create deployment test-deployment --image=nginx': 'Unable to connect to the server: x509: certificate has expired or is not yet valid',
+                    'kubectl scale deployment test-app --replicas=3': 'Unable to connect to the server: x509: certificate has expired or is not yet valid'
+                }, 
+                fixSteps: [ 'sudo kubeadm certs renew apiserver', 'sudo systemctl restart kubelet' ] 
+            },
+            'kubelet': { 
+                name: 'Kubelet Client', 
+                file: 'apiserver-kubelet-client.crt', 
+                icon: '📡', 
+                initialStatus: 'Valid - 67 days remaining', 
+                description: 'Certificate used by API server to communicate with kubelets on worker nodes.', 
+                subject: 'CN=kube-apiserver-kubelet-client, O=system:masters',
+                usage: 'TLS Web Client Authentication',
+                impact: 'Partial failure - kubectl logs and exec commands fail, but basic cluster access (get nodes, get pods) still works.', 
+                observationGuide: 'When broken: Basic commands like "kubectl get nodes" work, but "kubectl logs" fails with TLS errors.',
+                breakEffect: 'API server cannot communicate with node kubelets.', 
+                inspectCommands: [
+                    'openssl x509 -in /etc/kubernetes/pki/apiserver-kubelet-client.crt -text -noout',
+                    'openssl x509 -in /etc/kubernetes/pki/apiserver-kubelet-client.crt -dates -noout',
+                    'openssl x509 -in /etc/kubernetes/pki/apiserver-kubelet-client.crt -subject -noout'
+                ],
+                errorCommands: { 
+                    'kubectl logs -n kube-system kube-apiserver-control-plane': 'Error from server: Get "https://10.0.0.1:10250/...": tls: bad certificate',
+                    'kubectl exec -it pod-name -- /bin/bash': 'Error from server: Get "https://10.0.0.1:10250/exec/...": tls: bad certificate'
+                }, 
+                fixSteps: [ 'sudo kubeadm certs renew apiserver-kubelet-client', 'sudo crictl stop $(sudo crictl ps -q --name kube-apiserver)' ] 
+            },
+            'etcd': { 
+                name: 'ETCD Server', 
+                file: 'etcd/server.crt', 
+                icon: '💾', 
+                initialStatus: 'Valid - 45 days remaining', 
+                description: 'Certificate securing the etcd database that stores all cluster state and configuration.', 
+                subject: 'CN=control-plane',
+                usage: 'TLS Web Server Authentication, TLS Web Client Authentication',
+                impact: 'Complete cluster failure - API server cannot read/write cluster data from etcd.', 
+                observationGuide: 'When broken: Connection refused errors - API server cannot reach etcd database.',
+                breakEffect: 'Total cluster outage - etcd database inaccessible.', 
+                inspectCommands: [
+                    'openssl x509 -in /etc/kubernetes/pki/etcd/server.crt -text -noout',
+                    'openssl x509 -in /etc/kubernetes/pki/etcd/server.crt -dates -noout',
+                    'openssl x509 -in /etc/kubernetes/pki/etcd/server.crt -subject -noout'
+                ],
+                errorCommands: { 
+                    'kubectl get nodes': 'The connection to the server localhost:6443 was refused - did you specify the right host or port?',
+                    'kubectl get pods -A': 'The connection to the server localhost:6443 was refused - did you specify the right host or port?',
+                    'kubectl cluster-info': 'The connection to the server localhost:6443 was refused - did you specify the right host or port?',
+                    'kubectl get pods': 'The connection to the server localhost:6443 was refused - did you specify the right host or port?',
+                    'kubectl logs -n kube-system kube-apiserver-control-plane': 'The connection to the server localhost:6443 was refused - did you specify the right host or port?',
+                    'kubectl logs -n kube-system kube-controller-manager-control-plane': 'The connection to the server localhost:6443 was refused - did you specify the right host or port?',
+                    'kubectl get events -n kube-system': 'The connection to the server localhost:6443 was refused - did you specify the right host or port?',
+                    'kubectl describe node control-plane': 'The connection to the server localhost:6443 was refused - did you specify the right host or port?',
+                    'kubectl get componentstatuses': 'The connection to the server localhost:6443 was refused - did you specify the right host or port?',
+                    'kubectl create deployment test-deployment --image=nginx': 'The connection to the server localhost:6443 was refused - did you specify the right host or port?'
+                }, 
+                fixSteps: [ 'sudo kubeadm certs renew etcd-server', 'sudo crictl stop $(sudo crictl ps -q --name etcd)' ] 
+            },
+            'controller': { 
+                name: 'Controller Manager', 
+                file: 'controller-manager.conf', 
+                icon: '🎮', 
+                initialStatus: 'Valid - 23 days remaining', 
+                description: 'Certificate for the controller manager to authenticate with API server for pod lifecycle management.', 
+                subject: 'CN=system:kube-controller-manager',
+                usage: 'TLS Web Client Authentication',
+                impact: 'Partial failure - existing pods run fine, but new pods get stuck in Pending state. No scaling or deployment updates.', 
+                observationGuide: 'When broken: kubectl get commands work, but new deployments fail and pods stay Pending.',
+                breakEffect: 'Pod creation and scaling operations fail.', 
+                inspectCommands: [
+                    'openssl x509 -in /etc/kubernetes/pki/controller-manager.crt -text -noout',
+                    'openssl x509 -in /etc/kubernetes/pki/controller-manager.crt -dates -noout',
+                    'openssl x509 -in /etc/kubernetes/pki/controller-manager.crt -subject -noout'
+                ],
+                errorCommands: { 
+                    'kubectl get pods': 'NAME                     READY   STATUS    RESTARTS   AGE\ntest-deployment-xyz...   0/1     Pending   0          30s\nnew-pod-abc...           0/1     Pending   0          15s\nold-pod-running...       1/1     Running   0          2d',
+                    'kubectl get pods -A': 'NAMESPACE     NAME                                      READY   STATUS      RESTARTS   AGE\nkube-system   coredns-xyz-123                           1/1     Running     0          5d\nkube-system   etcd-control-plane                        1/1     Running     0          5d\nkube-system   kube-apiserver-control-plane              1/1     Running     0          5d\nkube-system   kube-controller-manager-control-plane     1/1     Running     0          5d\nkube-system   kube-scheduler-control-plane              1/1     Running     0          5d\ndefault       new-deployment-abc...                     0/1     Pending     0          45s\ndefault       stuck-pod-xyz...                          0/1     Pending     0          2m',
+                    'kubectl scale deployment test-app --replicas=3': 'deployment.apps/test-app scaled\n(New pods created but stuck in Pending state due to controller failure)',
+                    'kubectl create deployment test-broken --image=nginx': 'deployment.apps/test-broken created\n(Deployment created but pods will remain in Pending state)',
+                    'kubectl create deployment test-deployment --image=nginx': 'deployment.apps/test-deployment created\n(Deployment created but pods will remain in Pending state due to controller failure)',
+                    'kubectl logs -n kube-system kube-controller-manager-control-plane': 'E0805 12:00:00.123456       1 authentication.go:63] "Unable to authenticate the request" err="x509: certificate has expired or is not yet valid: current time 2024-08-05T12:00:00Z is after 2023-12-31T23:59:59Z"\nE0805 12:00:01.234567       1 controllermanager.go:273] Failed to start controller manager: unable to authenticate to API server\nE0805 12:00:02.345678       1 authentication.go:63] "Unable to authenticate the request" err="certificate has expired"',
+                    'kubectl get events -n kube-system': 'LAST SEEN   TYPE      REASON                   OBJECT                          MESSAGE\n2m          Warning   FailedAuthentication     pod/controller-manager          Authentication failed: certificate expired\n1m          Warning   Unhealthy                pod/controller-manager          Readiness probe failed: authentication error\n30s         Warning   FailedMount              pod/new-pod-xyz                 Unable to attach or mount volumes: timed out waiting for the condition',
+                    'kubectl describe node control-plane': 'Name:               control-plane\nRoles:              control-plane\nConditions:\n  Type                 Status   Message\n  ----                 ------   -------\n  NetworkUnavailable   False    \n  MemoryPressure       False    \n  DiskPressure         False    \n  PIDPressure          False    \n  Ready                True     \nAllocated resources:\n  Resource           Requests    Limits\n  --------           --------    ------\n  cpu                250m (12%)  0 (0%)\n  memory             170Mi (4%)  370Mi (9%)\nEvents:\n  Type     Reason                   Age   Message\n  ----     ------                   ----  -------\n  Warning  NodeControllerUnhealthy  2m    Node controller cannot schedule new pods',
+                    'kubectl get componentstatuses': 'Warning: v1 ComponentStatus is deprecated in v1.19+\nNAME                 STATUS      MESSAGE                              ERROR\ncontroller-manager   Unhealthy   Get "https://127.0.0.1:10257/healthz": x509: certificate has expired\nscheduler            Healthy     ok                                  \netcd-0               Healthy     ok'
+                }, 
+                fixSteps: [ 'sudo kubeadm certs renew controller-manager.conf', 'sudo crictl stop $(sudo crictl ps -q --name kube-controller-manager)' ] 
+            }
+        };
+
+        const baseCommands = {
+            'kubectl get nodes': 'NAME            STATUS   ROLES           AGE   VERSION\ncontrol-plane   Ready    control-plane   5d    v1.28.0\nworker-1        Ready    <none>          5d    v1.28.0',
+            'kubectl get pods -A': 'NAMESPACE     NAME                                      READY   STATUS    RESTARTS   AGE\nkube-system   coredns-xyz-123                           1/1     Running   0          5d\nkube-system   etcd-control-plane                        1/1     Running   0          5d\nkube-system   kube-apiserver-control-plane              1/1     Running   0          5d\nkube-system   kube-controller-manager-control-plane     1/1     Running   0          5d\nkube-system   kube-proxy-abcde                          1/1     Running   0          5d\nkube-system   kube-scheduler-control-plane              1/1     Running   0          5d',
+            'kubectl cluster-info': 'Kubernetes control plane is running at https://127.0.0.1:6443\nCoreDNS is running at https://127.0.0.1:6443/api/v1/namespaces/kube-system/services/kube-dns:dns/proxy',
+            'kubectl logs -n kube-system kube-apiserver-control-plane': 'I0805 12:00:00.123456       1 serving.go:34] Serving securely on 127.0.0.1:6443\nI0805 12:00:01.234567       1 httplog.go:132] "HTTP" verb="GET" URI="/api/v1/nodes" latency="2.345ms" userAgent="kubectl/v1.28.0" audit-ID="abc-def-123" srcIP="127.0.0.1" resp=200',
+            'kubectl logs -n kube-system kube-controller-manager-control-plane': 'I0805 12:00:00.123456       1 controllermanager.go:165] Starting "endpointslice"\nI0805 12:00:01.234567       1 node_lifecycle_controller.go:113] Sending events to api server\nI0805 12:00:02.345678       1 deployment_controller.go:146] Starting deployment controller',
+            'kubectl get events -n kube-system': 'LAST SEEN   TYPE     REASON              OBJECT                          MESSAGE\n5m          Normal   Starting            pod/kube-apiserver              Started container kube-apiserver\n3m          Normal   Scheduled           pod/coredns-xyz                 Successfully assigned kube-system/coredns-xyz to control-plane',
+            'kubectl describe node control-plane': 'Name:               control-plane\nRoles:              control-plane\nLabels:             kubernetes.io/arch=amd64\n                    kubernetes.io/hostname=control-plane\nAnnotations:        node.alpha.kubernetes.io/ttl: 0\nCreationTimestamp:  Mon, 01 Aug 2024 12:00:00 +0000\nTaints:             node-role.kubernetes.io/control-plane:NoSchedule\nUnschedulable:      false\nConditions:\n  Type                 Status\n  ----                 ------\n  NetworkUnavailable   False\n  MemoryPressure       False\n  DiskPressure         False\n  PIDPressure          False\n  Ready                True',
+            'kubectl get componentstatuses': 'Warning: v1 ComponentStatus is deprecated in v1.19+\nNAME                 STATUS    MESSAGE   ERROR\ncontroller-manager   Healthy   ok        \nscheduler            Healthy   ok        \netcd-0               Healthy   ok',
+            'kubectl create deployment test-deployment --image=nginx': 'deployment.apps/test-deployment created',
+            'sudo kubeadm certs renew apiserver': '✅ Certificate renewal successful!\n[certificates] apiserver renewed\n[certificates] Generating "apiserver" certificate and key\n[certificates] apiserver serving cert is signed for DNS names [kubernetes kubernetes.default] and IPs [10.96.0.1 192.168.1.100]\n✅ Certificate has been renewed! Please restart the kubelet service.',
+            'sudo kubeadm certs renew etcd-server': '✅ Certificate renewal successful!\n[certificates] etcd-server renewed\n[certificates] Generating "etcd-server" certificate and key\n[certificates] etcd-server serving cert is signed for DNS names [control-plane localhost] and IPs [192.168.1.100 127.0.0.1]\n✅ Certificate has been renewed! Please restart the etcd service.',
+            'sudo kubeadm certs renew apiserver-kubelet-client': '✅ Certificate renewal successful!\n[certificates] apiserver-kubelet-client renewed\n[certificates] Generating "apiserver-kubelet-client" certificate and key\n✅ Certificate has been renewed! Please restart the API server.',
+            'sudo kubeadm certs renew controller-manager.conf': '✅ Certificate renewal successful!\n[certificates] controller-manager.conf renewed\n[certificates] Generating "controller-manager" certificate and key\n✅ Certificate has been renewed! Please restart the controller manager.',
+            'sudo systemctl restart kubelet': '✅ kubelet service restarted successfully',
+            'sudo crictl stop $(sudo crictl ps -q --name kube-apiserver)': '✅ API server container stopped - Kubernetes will automatically restart it',
+            'sudo crictl stop $(sudo crictl ps -q --name etcd)': '✅ etcd container stopped - Kubernetes will automatically restart it',
+            'sudo crictl stop $(sudo crictl ps -q --name kube-controller-manager)': '✅ Controller manager container stopped - Kubernetes will automatically restart it'
+        };
+
+        // Certificate date simulation - tracks cert states
+        const certDates = {
+            'api-server': { 
+                healthy: { notBefore: 'Jan  1 00:00:00 2024 GMT', notAfter: 'Dec 31 23:59:59 2024 GMT' },
+                broken: { notBefore: 'Jan  1 00:00:00 2023 GMT', notAfter: 'Dec 31 23:59:59 2023 GMT' }
+            },
+            'kubelet': { 
+                healthy: { notBefore: 'Jan  1 00:00:00 2024 GMT', notAfter: 'Oct  5 23:59:59 2024 GMT' },
+                broken: { notBefore: 'Jan  1 00:00:00 2023 GMT', notAfter: 'Oct  5 23:59:59 2023 GMT' }
+            },
+            'etcd': { 
+                healthy: { notBefore: 'Jan  1 00:00:00 2024 GMT', notAfter: 'Sep 20 23:59:59 2024 GMT' },
+                broken: { notBefore: 'Jan  1 00:00:00 2023 GMT', notAfter: 'Sep 20 23:59:59 2023 GMT' }
+            },
+            'controller': { 
+                healthy: { notBefore: 'Jan  1 00:00:00 2024 GMT', notAfter: 'Aug 28 23:59:59 2024 GMT' },
+                broken: { notBefore: 'Jan  1 00:00:00 2023 GMT', notAfter: 'Aug 28 23:59:59 2023 GMT' }
+            }
+        };
+
+        // Certificate explanations for different failure scenarios
+        const certExplanations = {
+            'api-server': {
+                title: '🛡️ API Server Certificate Analysis',
+                explanation: 'The API Server certificate secures ALL communication to the Kubernetes API. When this certificate expires, the entire cluster becomes inaccessible because no client (including kubectl) can establish a trusted TLS connection to the API server. This is why you see "x509: certificate has expired" errors for every command.'
+            },
+            'kubelet': {
+                title: '📡 Kubelet Client Certificate Analysis', 
+                explanation: 'The Kubelet Client certificate is used by the API server to authenticate when talking to kubelets on worker nodes. When expired, basic API operations (get nodes, get pods) still work because they query the API server\'s internal state. However, operations requiring kubelet communication (logs, exec, port-forward) fail with TLS errors.'
+            },
+            'etcd': {
+                title: '💾 ETCD Server Certificate Analysis',
+                explanation: 'The ETCD certificate secures the database where all cluster state is stored. When this expires, the API server cannot read or write any data to etcd. This causes "connection refused" errors because the API server itself becomes non-functional - it cannot serve any requests without access to its data store.'
+            },
+            'controller': {
+                title: '🎮 Controller Manager Certificate Analysis',
+                explanation: 'The Controller Manager certificate allows the controller to authenticate with the API server for managing pod lifecycles, scaling, and deployments. When expired, existing pods continue running, but new pods get stuck in "Pending" state because the controller cannot schedule them. To detect this issue: check controller manager logs for "certificate has expired" errors, run "kubectl get componentstatuses" to see controller-manager status as "Unhealthy", or look for events showing authentication failures.'
+            }
+        };
+
+        // --- DOM ELEMENTS ---
+        const elements = {};
+
+        // --- INITIALIZATION ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeElements();
+            populateStaticContent();
+            initializeEventListeners();
+            resetLab();
+        });
+
+        function initializeElements() {
+            elements.scenarioSelect = document.getElementById('scenario-select');
+            elements.scenarioInfo = document.getElementById('scenario-info');
+            elements.btnStartScenario = document.getElementById('btn-start-scenario');
+            elements.btnNextStep = document.getElementById('btn-next-step');
+            elements.btnReset = document.getElementById('btn-reset');
+            elements.terminalContent = document.getElementById('terminal-content');
+            elements.commandInput = document.getElementById('command-input');
+            elements.certificatesContainer = document.getElementById('certificates-container');
+            elements.quickCommandsContainer = document.getElementById('quick-commands-container');
+        }
+
+        function populateStaticContent() {
+            // Populate Scenario Selector
+            for (const key in learningScenarios) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = learningScenarios[key].name;
+                elements.scenarioSelect.appendChild(option);
+            }
+
+            // Populate Certificate Cards with action buttons and expandable details
+            const scenario = learningScenarios[appState.currentScenario];
+            const showButtons = scenario.allowManipulation !== false; // Default to true unless explicitly false
+            
+            elements.certificatesContainer.innerHTML = Object.entries(certificateDefinitions).map(([id, cert]) => `
+                <div class="certificate-card healthy" id="cert-${id}" data-cert-id="${id}" data-initial-status="${cert.initialStatus}">
+                    <div class="cert-header">
+                        <span class="cert-icon">${cert.icon}</span>
+                        <span class="cert-name">${cert.name}</span>
+                        <span class="cert-status-indicator healthy"></span>
+                    </div>
+                    <div class="cert-file">${cert.file}</div>
+                    <div class="cert-status healthy">${cert.initialStatus}</div>
+                    ${showButtons ? `
+                    <div class="cert-actions">
+                        <button class="btn btn-danger btn-small cert-break-btn" data-cert-id="${id}">💥 Break</button>
+                        <button class="btn btn-success btn-small cert-fix-btn" data-cert-id="${id}" style="display: none;">✅ Fix</button>
+                    </div>
+                    ` : `
+                    <div class="cert-actions" style="display: none;">
+                        <div class="investigation-note">🔍 Investigation Mode: Use openssl and kubectl commands to diagnose issues</div>
+                    </div>
+                    `}
+                    
+                    <!-- Expandable Certificate Details -->
+                    <div class="cert-details-expandable" id="cert-details-${id}" style="display: none;">
+                        <div class="cert-details-content">
+                            <div class="cert-detail-row">
+                                <span class="cert-detail-label">Subject:</span>
+                                <span class="cert-detail-value">${cert.subject}</span>
+                            </div>
+                            <div class="cert-detail-row">
+                                <span class="cert-detail-label">Usage:</span>
+                                <span class="cert-detail-value">${cert.usage}</span>
+                            </div>
+                            <div class="cert-detail-row">
+                                <span class="cert-detail-label">Valid From:</span>
+                                <span class="cert-detail-value cert-valid-from-${id}">Jan  1 00:00:00 2024 GMT</span>
+                            </div>
+                            <div class="cert-detail-row">
+                                <span class="cert-detail-label">Valid Until:</span>
+                                <span class="cert-detail-value cert-valid-until-${id} healthy">Dec 31 23:59:59 2024 GMT</span>
+                            </div>
+                            ${showButtons ? '' : `
+                            <div class="cert-detail-row">
+                                <span class="cert-detail-label">Fix Commands:</span>
+                                <span class="cert-detail-value" style="text-align: left; font-size: 0.6rem;">
+                                    ${cert.fixSteps.join('<br>')}
+                                </span>
+                            </div>
+                            `}
+                            <div class="cert-details-description">
+                                ${cert.description}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            // Populate Quick Commands
+            elements.quickCommandsContainer.innerHTML = Object.keys(baseCommands).map(cmd => 
+                `<button class="quick-cmd" data-cmd="${cmd}">${cmd}</button>`
+            ).join('');
+        }
+
+        function initializeEventListeners() {
+            elements.scenarioSelect.addEventListener('change', (e) => {
+                appState.currentScenario = e.target.value;
+                updateScenarioInfo();
+            });
+
+            elements.btnStartScenario.addEventListener('click', startScenario);
+            elements.btnNextStep.addEventListener('click', nextScenarioStep);
+            elements.btnReset.addEventListener('click', resetLab);
+
+            elements.commandInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const command = e.target.value.trim();
+                    if (command) {
+                        executeCommand(command);
+                        e.target.value = '';
+                    }
+                }
+            });
+            
+            // KEY FIX: Updated certificate interaction logic
+            elements.certificatesContainer.addEventListener('click', (e) => {
+                const card = e.target.closest('.certificate-card');
+                const breakBtn = e.target.closest('.cert-break-btn');
+                const fixBtn = e.target.closest('.cert-fix-btn');
+                
+                // Check if manual manipulation is allowed
+                const currentScenario = learningScenarios[appState.currentScenario];
+                const manipulationAllowed = !appState.scenarioActive || currentScenario.allowManipulation;
+                
+                if (breakBtn && manipulationAllowed) {
+                    const certId = breakBtn.dataset.certId;
+                    breakCertificateById(certId);
+                } else if (fixBtn && manipulationAllowed) {
+                    const certId = fixBtn.dataset.certId;
+                    fixCertificateById(certId);
+                } else if (card && !breakBtn && !fixBtn) {
+                    // Always allow certificate selection for info display
+                    const certId = card.dataset.certId;
+                    selectCertificate(certId);
+                } else if ((breakBtn || fixBtn) && !manipulationAllowed) {
+                    addTerminalLine('💡 Certificate actions are disabled for this scenario type. Use "Next Step" or "Reset Lab".', 'warning');
+                }
+            });
+
+            elements.quickCommandsContainer.addEventListener('click', (e) => {
+                if (e.target.classList.contains('quick-cmd')) {
+                    executeCommand(e.target.dataset.cmd);
+                }
+            });
+        }
+        
+        // --- UTILITY FUNCTIONS ---
+        const formatTimestamp = () => new Date().toLocaleTimeString('en-GB');
+
+        function addTerminalLine(text, type = 'info', prompt = '') {
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.innerHTML = `
+                <span class="timestamp">${formatTimestamp()}</span>
+                <span class="content">${prompt}<span class="output ${type}">${text}</span></span>
+            `;
+            elements.terminalContent.appendChild(line);
+            elements.terminalContent.scrollTop = elements.terminalContent.scrollHeight;
+        }
+
+        function selectCertificate(certId) {
+            const cert = certificateDefinitions[certId];
+            const detailsSection = document.getElementById(`cert-details-${certId}`);
+            
+            // Check if this certificate's details are already expanded
+            const isExpanded = detailsSection.style.display === 'block';
+            
+            // Collapse all other certificate details first
+            document.querySelectorAll('.cert-details-expandable').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            // Clear all selections
+            document.querySelectorAll('.certificate-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            if (!isExpanded) {
+                // Expand this certificate's details
+                const certCard = document.getElementById(`cert-${certId}`);
+                certCard.classList.add('selected');
+                detailsSection.style.display = 'block';
+                appState.selectedCertificate = certId;
+                
+                // Update the certificate dates in the expanded view
+                updateCertificateDatesInView(certId);
+                
+                addTerminalLine(`📋 Expanded ${cert.name} certificate details.`, 'info');
+            } else {
+                // Collapse - already handled above
+                appState.selectedCertificate = null;
+                addTerminalLine(`📋 Collapsed certificate details.`, 'info');
+            }
+        }
+        
+        function updateCertificateDatesInView(certId) {
+            const isBroken = appState.brokenCertificates.has(certId);
+            const dates = isBroken ? certDates[certId].broken : certDates[certId].healthy;
+            
+            const validFromElement = document.querySelector(`.cert-valid-from-${certId}`);
+            const validUntilElement = document.querySelector(`.cert-valid-until-${certId}`);
+            
+            if (validFromElement) {
+                validFromElement.textContent = dates.notBefore;
+            }
+            
+            if (validUntilElement) {
+                validUntilElement.textContent = dates.notAfter;
+                validUntilElement.className = `cert-detail-value cert-valid-until-${certId} ${isBroken ? 'expired' : 'healthy'}`;
+            }
+        }
+
+        function updateClusterHealth() {
+            const statusMini = document.getElementById('cluster-status-mini');
+            const anyBroken = appState.brokenCertificates.size > 0;
+            
+            if (anyBroken) {
+                statusMini.className = 'cluster-status-mini unhealthy';
+                statusMini.innerHTML = `
+                    <span class="status-icon">❌</span>
+                    <span class="status-text">${appState.brokenCertificates.size} certificate(s) broken</span>
+                `;
+            } else {
+                statusMini.className = 'cluster-status-mini';
+                statusMini.innerHTML = `
+                    <span class="status-icon">✅</span>
+                    <span class="status-text">All certificates healthy</span>
+                `;
+            }
+        }
+
+        function updateProgressUI() {
+            // No longer showing step banner - all instructions go to terminal
+        }
+        
+        function updateScenarioInfo() {
+            const scenario = learningScenarios[appState.currentScenario];
+            elements.scenarioInfo.innerHTML = `
+                <strong>${scenario.name}</strong><br>
+                ${scenario.description}<br>
+                <span style="font-size: 0.8em; opacity: 0.8;">${scenario.difficulty} • ${scenario.timeEstimate}</span>
+            `;
+        }
+
+        function startScenario() {
+            // Prevent multiple executions
+            if (appState.scenarioActive) {
+                console.warn('Scenario already active, ignoring start request');
+                return;
+            }
+            
+            resetLab(false); // Soft reset, don't clear terminal welcome
+            appState.scenarioActive = true;
+            appState.scenarioStep = 0;
+            elements.btnStartScenario.style.display = 'none';
+            elements.btnNextStep.style.display = 'inline-block';
+            elements.btnNextStep.disabled = false;
+            elements.scenarioSelect.disabled = true;
+
+            const scenario = learningScenarios[appState.currentScenario];
+            addTerminalLine(`🎯 Starting Scenario: ${scenario.name}`, 'info');
+            
+            // Show different message for guided learning
+            if (scenario.allowManipulation) {
+                addTerminalLine(`💡 In this scenario, you can manually break and fix certificates using the buttons.`, 'info');
+            } else {
+                addTerminalLine(`🔍 Investigation Mode: Use kubectl and openssl commands to diagnose issues.`, 'warning');
+                
+                // Break certificates immediately for crisis scenarios
+                if (scenario.autoBreakOnStart && Array.isArray(scenario.autoBreakOnStart)) {
+                    setTimeout(() => {
+                        addTerminalLine(`⚠️  Simulating overnight certificate expiry...`, 'warning');
+                        scenario.autoBreakOnStart.forEach(certId => {
+                            if (certificateDefinitions[certId] && !appState.brokenCertificates.has(certId)) {
+                                addTerminalLine(`💥 SYSTEM: ${certificateDefinitions[certId].name} certificate expired!`, 'error');
+                                breakCertificateById(certId, false);
+                            }
+                        });
+                        addTerminalLine(`📞 Multiple alerts received - cluster is experiencing issues!`, 'error');
+                    }, 1000);
+                }
+            }
+            
+            // Execute first step with a slight delay to prevent stack overflow
+            setTimeout(() => {
+                executeScenarioStep();
+            }, 100);
+        }
+        
+        function nextScenarioStep() {
+            // Safety check - don't advance if scenario is not active
+            if (!appState.scenarioActive) {
+                console.warn('Scenario not active, skipping next step');
+                return;
+            }
+            
+            appState.scenarioStep++;
+            console.log(`Advancing to step ${appState.scenarioStep + 1}`);
+            executeScenarioStep();
+        }
+        
+        function executeScenarioStep() {
+            // Safety check - don't execute if scenario is not active
+            if (!appState.scenarioActive) {
+                console.warn('Scenario not active, skipping step execution');
+                return;
+            }
+            
+            const scenario = learningScenarios[appState.currentScenario];
+            const step = scenario.steps[appState.scenarioStep];
+            if (!step) {
+                completeScenario();
+                return;
+            }
+
+            console.log(`Executing step ${appState.scenarioStep + 1}: ${step.title}`);
+            addTerminalLine(`📍 Step ${appState.scenarioStep + 1}: ${step.title}`, 'warning');
+            addTerminalLine(`${step.instruction}`, 'info');
+            
+            // Show suggested commands in terminal for observation steps
+            if (step.showCommands && appState.selectedCertificate) {
+                const cert = certificateDefinitions[appState.selectedCertificate];
+                addTerminalLine('', 'info'); // Empty line for spacing
+                
+                if (appState.selectedCertificate === 'controller') {
+                    // Controller Manager specific detection workflow
+                    addTerminalLine('🎮 Controller Manager Detection Workflow:', 'info');
+                    addTerminalLine('1️⃣ First, try to create a test pod to see the symptom:', 'info');
+                    addTerminalLine('   kubectl create deployment test-deployment --image=nginx', 'info');
+                    addTerminalLine('   kubectl get pods', 'info');
+                    addTerminalLine('', 'info');
+                    addTerminalLine('2️⃣ If pods are stuck in Pending, investigate the controller:', 'info');
+                    addTerminalLine('   kubectl logs -n kube-system kube-controller-manager-control-plane', 'info');
+                    addTerminalLine('   kubectl get componentstatuses', 'info');
+                    addTerminalLine('   kubectl get events -n kube-system', 'info');
+                } else if (appState.selectedCertificate === 'kubelet') {
+                    // Kubelet specific detection workflow  
+                    addTerminalLine('📡 Kubelet Certificate Detection Workflow:', 'info');
+                    addTerminalLine('1️⃣ Basic commands should work:', 'info');
+                    addTerminalLine('   kubectl get nodes', 'info');
+                    addTerminalLine('   kubectl get pods', 'info');
+                    addTerminalLine('', 'info');
+                    addTerminalLine('2️⃣ But kubelet communication will fail:', 'info');
+                    addTerminalLine('   kubectl logs -n kube-system kube-apiserver-control-plane', 'info');
+                    addTerminalLine('   kubectl exec -it <pod-name> -- /bin/bash', 'info');
+                } else {
+                    // API Server and ETCD - immediate failures
+                    addTerminalLine('💡 Try these kubectl commands to see the impact:', 'info');
+                    addTerminalLine('   kubectl get nodes', 'info');
+                    addTerminalLine('   kubectl get pods -A', 'info');
+                    addTerminalLine('   kubectl cluster-info', 'info');
+                }
+                
+                addTerminalLine('', 'info'); // Empty line for spacing
+                addTerminalLine('🔍 Inspect the certificate with these openssl commands:', 'info');
+                cert.inspectCommands.forEach(cmd => {
+                    addTerminalLine(`   ${cmd}`, 'info');
+                });
+                addTerminalLine('', 'info'); // Empty line for spacing
+            }
+            
+            // Crisis scenario specific guidance
+            if (step.action === 'diagnosis-phase') {
+                addTerminalLine('🔍 Start your investigation with these diagnostic commands:', 'warning');
+                addTerminalLine('   kubectl get nodes', 'info');
+                addTerminalLine('   kubectl cluster-info', 'info');
+                addTerminalLine('   kubectl get pods -A', 'info');
+                addTerminalLine('', 'info');
+                addTerminalLine('💡 If all commands fail, this suggests API server or etcd issues!', 'warning');
+            }
+            
+            if (step.action === 'investigate-certs') {
+                addTerminalLine('🔍 Check certificate expiry dates to find the culprit:', 'warning');
+                addTerminalLine('   openssl x509 -in /etc/kubernetes/pki/apiserver.crt -dates -noout', 'info');
+                addTerminalLine('   openssl x509 -in /etc/kubernetes/pki/etcd/server.crt -dates -noout', 'info');
+                addTerminalLine('   openssl x509 -in /etc/kubernetes/pki/apiserver-kubelet-client.crt -dates -noout', 'info');
+                addTerminalLine('', 'info');
+                addTerminalLine('💡 Look for dates in 2023 - those certificates have expired!', 'warning');
+            }
+            
+            if (step.action === 'test-scheduling') {
+                addTerminalLine('🧪 Test pod scheduling to identify the issue:', 'warning');
+                addTerminalLine('   kubectl create deployment test-deployment --image=nginx', 'info');
+                addTerminalLine('   kubectl get pods', 'info');
+                addTerminalLine('   kubectl describe pod <pod-name>', 'info');
+                addTerminalLine('', 'info');
+                addTerminalLine('💡 If pods are stuck in Pending, check the controller manager!', 'warning');
+            }
+            
+            if (step.action === 'check-components') {
+                addTerminalLine('🏥 Check the health of cluster components:', 'warning');
+                addTerminalLine('   kubectl get componentstatuses', 'info');
+                addTerminalLine('   kubectl logs -n kube-system kube-controller-manager-control-plane', 'info');
+                addTerminalLine('   kubectl get events -n kube-system', 'info');
+                addTerminalLine('', 'info');
+                addTerminalLine('💡 Look for "certificate has expired" errors in the logs!', 'warning');
+            }
+            
+            // Execute step-specific actions with safety checks
+            if (step.action === 'auto-break-multiple' || step.action === 'auto-break-single' || step.action === 'auto-break-additional') {
+                if (step.autoBreak && Array.isArray(step.autoBreak)) {
+                    setTimeout(() => {
+                        step.autoBreak.forEach(certId => {
+                             if (certificateDefinitions[certId] && !appState.brokenCertificates.has(certId)) {
+                                addTerminalLine(`💥 SYSTEM: ${certificateDefinitions[certId].name} certificate has expired!`, 'error');
+                                breakCertificateById(certId, false);
+                             }
+                        });
+                    }, 1500); // Slightly longer delay to ensure UI is ready
+                }
+            }
+            
+            updateProgressUI();
+            updateScenarioProgress();
+        }
+        
+        function completeScenario() {
+            const scenario = learningScenarios[appState.currentScenario];
+            addTerminalLine(`🎉 Scenario Complete: ${scenario.name}`, 'success');
+            addTerminalLine(`✅ You\'ve successfully completed this learning scenario!`, 'success');
+            appState.scenarioActive = false;
+            elements.btnNextStep.disabled = true;
+            elements.btnStartScenario.textContent = '▶️ Start Another';
+            elements.btnStartScenario.style.display = 'inline-block';
+            elements.scenarioSelect.disabled = false;
+            appState.metrics.learningProgress = 100;
+            // Removed updateMetrics() call to prevent infinite loop
+        }
+        
+        function updateScenarioProgress() {
+            const scenario = learningScenarios[appState.currentScenario];
+            const progress = Math.min(100, Math.round(((appState.scenarioStep) / (scenario.steps.length-1)) * 100));
+            appState.metrics.learningProgress = progress;
+            // Removed updateMetrics() call that was causing the infinite loop
+        }
+
+        function breakCertificateById(certId, fromManualClick = true) {
+            if (appState.brokenCertificates.has(certId)) return;
+            appState.brokenCertificates.add(certId);
+            appState.metrics.certificateErrors++;
+            if (certificateDefinitions[certId].impact.includes('Complete')) {
+                appState.metrics.impactLevel = 'Critical';
+            } else if (appState.metrics.impactLevel !== 'Critical') {
+                appState.metrics.impactLevel = 'High';
+            }
+            const certCard = document.getElementById(`cert-${certId}`);
+            certCard.className = 'certificate-card broken';
+            certCard.querySelector('.cert-status').textContent = 'EXPIRED';
+            certCard.querySelector('.cert-status').className = 'cert-status broken';
+            certCard.querySelector('.cert-status-indicator').className = 'cert-status-indicator broken';
+            
+            // Toggle button visibility
+            certCard.querySelector('.cert-break-btn').style.display = 'none';
+            certCard.querySelector('.cert-fix-btn').style.display = 'inline-block';
+            
+            // Refresh certificate details if this cert is expanded
+            if (appState.selectedCertificate === certId) {
+                updateCertificateDatesInView(certId);
+            }
+            
+            if (fromManualClick) {
+                addTerminalLine(`💥 Broke ${certificateDefinitions[certId].name} certificate!`, 'error');
+            }
+            updateClusterHealth();
+        }
+
+        function fixCertificateById(certId, fromManualClick = true) {
+            if (!appState.brokenCertificates.has(certId)) return;
+            appState.brokenCertificates.delete(certId);
+            const certCard = document.getElementById(`cert-${certId}`);
+            certCard.className = 'certificate-card healthy';
+            certCard.querySelector('.cert-status').textContent = certCard.dataset.initialStatus;
+            certCard.querySelector('.cert-status').className = 'cert-status healthy';
+            certCard.querySelector('.cert-status-indicator').className = 'cert-status-indicator healthy';
+            
+            // Toggle button visibility
+            certCard.querySelector('.cert-break-btn').style.display = 'inline-block';
+            certCard.querySelector('.cert-fix-btn').style.display = 'none';
+            
+            // Refresh certificate details if this cert is expanded
+            if (appState.selectedCertificate === certId) {
+                updateCertificateDatesInView(certId);
+            }
+            
+             if (fromManualClick) {
+                addTerminalLine(`✅ Fixed ${certificateDefinitions[certId].name} certificate!`, 'success');
+            }
+            if (appState.brokenCertificates.size === 0) {
+                 appState.metrics.impactLevel = 'None';
+                 appState.metrics.certificateErrors = 0;
+            }
+            updateClusterHealth();
+        }
+
+        function resetLab(clearTerminal = true) {
+            appState.brokenCertificates.clear();
+            appState.scenarioActive = false;
+            appState.scenarioStep = 0;
+            appState.selectedCertificate = null;
+            appState.metrics = { failedCommands: 0, certificateErrors: 0, impactLevel: 'None', learningProgress: 0 };
+
+            document.querySelectorAll('.certificate-card').forEach(card => {
+                card.className = 'certificate-card healthy';
+                card.querySelector('.cert-status').textContent = card.dataset.initialStatus;
+                card.querySelector('.cert-status').className = 'cert-status healthy';
+                card.querySelector('.cert-status-indicator').className = 'cert-status-indicator healthy';
+                // Reset button visibility
+                card.querySelector('.cert-break-btn').style.display = 'inline-block';
+                card.querySelector('.cert-fix-btn').style.display = 'none';
+            });
+            
+            elements.btnStartScenario.style.display = 'inline-block';
+            elements.btnStartScenario.textContent = '🚀 Start Scenario';
+            elements.btnNextStep.style.display = 'none';
+            elements.btnNextStep.disabled = true;
+            elements.scenarioSelect.disabled = false;
+            
+            // Hide explanation panel and collapse certificate details
+            document.getElementById('explanation-panel').style.display = 'none';
+            document.querySelectorAll('.cert-details-expandable').forEach(section => {
+                section.style.display = 'none';
+            });
+            
+            if (clearTerminal) {
+                elements.terminalContent.innerHTML = '';
+                addTerminalLine('🔄 Lab has been reset.', 'info');
+                addTerminalLine('🎯 Select a learning scenario to begin.', 'info');
+            }
+
+            updateClusterHealth();
+            updateProgressUI();
+            updateScenarioInfo();
+        }
+
+        function executeCommand(command) {
+            // Hide any previous explanations when running new commands
+            document.getElementById('explanation-panel').style.display = 'none';
+            
+            addTerminalLine(command, 'command', '<span class="prompt">admin@k8s-lab:~$ </span>');
+            
+            let output = '';
+            let outputType = 'success';
+            let errorFound = false;
+            let showExplanation = false;
+            let explanationCert = null;
+
+            // Handle certificate renewal commands - actually fix the certificates
+            if (command.includes('sudo kubeadm certs renew')) {
+                let certFixed = false;
+                if (command.includes('apiserver') && !command.includes('kubelet')) {
+                    if (appState.brokenCertificates.has('api-server')) {
+                        fixCertificateById('api-server', false);
+                        certFixed = true;
+                    }
+                } else if (command.includes('etcd-server')) {
+                    if (appState.brokenCertificates.has('etcd')) {
+                        fixCertificateById('etcd', false);
+                        certFixed = true;
+                    }
+                } else if (command.includes('kubelet-client')) {
+                    if (appState.brokenCertificates.has('kubelet')) {
+                        fixCertificateById('kubelet', false);
+                        certFixed = true;
+                    }
+                } else if (command.includes('controller-manager')) {
+                    if (appState.brokenCertificates.has('controller')) {
+                        fixCertificateById('controller', false);
+                        certFixed = true;
+                    }
+                }
+                
+                output = baseCommands[command] || 'Certificate renewal completed successfully!';
+                outputType = certFixed ? 'success' : 'warning';
+                
+                if (certFixed) {
+                    setTimeout(() => {
+                        addTerminalLine('🎉 Certificate renewed and cluster component updated!', 'success');
+                    }, 1000);
+                }
+            }
+            // Handle dynamic openssl certificate date commands
+            else if (command.includes('openssl x509') && command.includes('-dates -noout')) {
+                const certPaths = {
+                    '/etc/kubernetes/pki/apiserver.crt': 'api-server',
+                    '/etc/kubernetes/pki/apiserver-kubelet-client.crt': 'kubelet', 
+                    '/etc/kubernetes/pki/etcd/server.crt': 'etcd',
+                    '/etc/kubernetes/pki/controller-manager.crt': 'controller'
+                };
+                
+                for (const [path, certId] of Object.entries(certPaths)) {
+                    if (command.includes(path)) {
+                        const isBroken = appState.brokenCertificates.has(certId);
+                        const dates = isBroken ? certDates[certId].broken : certDates[certId].healthy;
+                        output = `notBefore=${dates.notBefore}\nnotAfter=${dates.notAfter}`;
+                        outputType = isBroken ? 'error' : 'success';
+                        break;
+                    }
+                }
+            }
+            // Handle subject commands
+            else if (command.includes('openssl x509') && command.includes('-subject -noout')) {
+                if (command.includes('apiserver.crt')) {
+                    output = 'subject=CN = kube-apiserver, O = system:masters';
+                } else if (command.includes('apiserver-kubelet-client.crt')) {
+                    output = 'subject=CN = kube-apiserver-kubelet-client, O = system:masters';
+                } else if (command.includes('etcd/server.crt')) {
+                    output = 'subject=CN = control-plane';
+                } else if (command.includes('controller-manager.crt')) {
+                    output = 'subject=CN = system:kube-controller-manager';
+                }
+            }
+            // Check for kubectl command errors from broken certificates - PRIORITY ORDER MATTERS
+            else {
+                // Priority 1: API Server failure - overrides all other errors
+                if (appState.brokenCertificates.has('api-server')) {
+                    const apiErrorOutput = certificateDefinitions['api-server'].errorCommands[command];
+                    if (apiErrorOutput) {
+                        output = apiErrorOutput;
+                        outputType = 'error';
+                        errorFound = true;
+                        showExplanation = true;
+                        explanationCert = 'api-server';
+                    }
+                }
+                // Priority 2: ETCD failure - overrides other errors except API server
+                else if (appState.brokenCertificates.has('etcd')) {
+                    const etcdErrorOutput = certificateDefinitions['etcd'].errorCommands[command];
+                    if (etcdErrorOutput) {
+                        output = etcdErrorOutput;
+                        outputType = 'error';
+                        errorFound = true;
+                        showExplanation = true;
+                        explanationCert = 'etcd';
+                    }
+                }
+                // Priority 3: Other certificate failures
+                else {
+                    for (const certId of appState.brokenCertificates) {
+                        const errorCmdOutput = certificateDefinitions[certId].errorCommands[command];
+                        if (errorCmdOutput) {
+                            output = errorCmdOutput;
+                            outputType = 'error';
+                            errorFound = true;
+                            showExplanation = true;
+                            explanationCert = certId;
+                            break; 
+                        }
+                    }
+                }
+                
+                if (!errorFound) {
+                    output = baseCommands[command] || `Command not recognized in this simulation. Try a quick command.`;
+                    if (!baseCommands[command]) outputType = 'warning';
+                }
+            }
+
+            setTimeout(() => {
+                addTerminalLine(output, outputType);
+                
+                // Show explanation for certificate-related errors
+                if (showExplanation && explanationCert) {
+                    showCertificateExplanation(explanationCert);
+                }
+            }, 300 + Math.random() * 400);
+        }
+        
+        function showCertificateExplanation(certId) {
+            const explanationPanel = document.getElementById('explanation-panel');
+            const explanationContent = document.getElementById('explanation-content');
+            const explanation = certExplanations[certId];
+            
+            explanationContent.innerHTML = `
+                <h4>${explanation.title}</h4>
+                <p>${explanation.explanation}</p>
+                <div style="margin-top: 0.75rem; text-align: right;">
+                    <button class="btn btn-primary btn-small" onclick="document.getElementById('explanation-panel').style.display='none'" style="background: var(--primary-color); color: white; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.75rem;">
+                        ✕ Close
+                    </button>
+                </div>
+            `;
+            
+            explanationPanel.style.display = 'block';
+            
+            // No auto-hide - let user close manually or it will hide on next command
+        }
+
+        // Global stats tracking
+        let usageStats = {
+            totalTests: 0,
+            testsToday: 0,
+            lastTest: null
+        };
+
+        // Auto-detect Netlify function endpoint
+        const isNetlify = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('learningdevops.com');
+        const API_BASE = isNetlify 
+            ? `${window.location.origin}/.netlify/functions`
+            : 'https://demos.learningdevops.com/.netlify/functions';
+
+        // --- STATS FUNCTIONS ---
+        async function fetchStats() {
+            try {
+                const response = await fetch(`${API_BASE}/pki-lab-stats`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                usageStats = {
+                    totalTests: data.totalTests || 0,
+                    testsToday: data.testsToday || 0,
+                    lastTest: null
+                };
+                
+                if (data.lastTest) {
+                    if (data.lastTest._seconds) {
+                        usageStats.lastTest = new Date(data.lastTest._seconds * 1000);
+                    } else if (data.lastTest.seconds) {
+                        usageStats.lastTest = new Date(data.lastTest.seconds * 1000);
+                    }
+                }
+                
+                updateUsageDisplay();
+                return true;
+            } catch (error) {
+                loadLocalStats();
+                return false;
+            }
+        }
+        
+        async function incrementStats() {
+            try {
+                const response = await fetch(`${API_BASE}/pki-lab-stats`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                usageStats = {
+                    totalTests: data.totalTests || 0,
+                    testsToday: data.testsToday || 0,
+                    lastTest: null
+                };
+                
+                if (data.lastTest) {
+                    if (data.lastTest._seconds) {
+                        usageStats.lastTest = new Date(data.lastTest._seconds * 1000);
+                    } else if (data.lastTest.seconds) {
+                        usageStats.lastTest = new Date(data.lastTest.seconds * 1000);
+                    }
+                }
+                
+                updateUsageDisplay();
+                return true;
+            } catch (error) {
+                incrementLocalStats();
+                return false;
+            }
+        }
+        
+        function loadLocalStats() {
+            const stored = localStorage.getItem('pkiLabUsageStats');
+            if (stored) {
+                usageStats = JSON.parse(stored);
+                if (usageStats.lastTest) {
+                    usageStats.lastTest = new Date(usageStats.lastTest);
+                }
+            }
+            updateUsageDisplay();
+        }
+        
+        function incrementLocalStats() {
+            usageStats.totalTests++;
+            usageStats.testsToday++;
+            usageStats.lastTest = new Date();
+            localStorage.setItem('pkiLabUsageStats', JSON.stringify(usageStats));
+            updateUsageDisplay();
+        }
+        
+        function updateUsageDisplay() {
+            const totalTestsEl = document.getElementById('totalTests');
+            const testsTodayEl = document.getElementById('testsToday');
+            const lastTestEl = document.getElementById('lastTest');
+            const connectionStatusEl = document.getElementById('connectionStatus');
+            
+            if (!totalTestsEl) return; // Elements not ready yet
+            
+            totalTestsEl.textContent = usageStats.totalTests.toLocaleString();
+            testsTodayEl.textContent = usageStats.testsToday;
+            
+            if (API_BASE.includes('learningdevops.com')) {
+                connectionStatusEl.innerHTML = '🔒 <strong>Global Stats</strong>';
+                connectionStatusEl.style.color = '#48bb78';
+            } else {
+                connectionStatusEl.innerHTML = '📱 <strong>Local Mode</strong>';
+                connectionStatusEl.style.color = '#f6e05e';
+            }
+            
+            if (usageStats.lastTest && usageStats.lastTest instanceof Date && !isNaN(usageStats.lastTest)) {
+                const lastTime = usageStats.lastTest;
+                const now = new Date();
+                const diffMinutes = Math.floor((now - lastTime) / 60000);
+                
+                let timeText;
+                if (diffMinutes < 1) {
+                    timeText = 'Just now';
+                } else if (diffMinutes < 60) {
+                    timeText = `${diffMinutes}m ago`;
+                } else if (diffMinutes < 1440) {
+                    timeText = `${Math.floor(diffMinutes / 60)}h ago`;
+                } else {
+                    timeText = lastTime.toLocaleDateString();
+                }
+                
+                lastTestEl.textContent = timeText;
+            } else {
+                lastTestEl.textContent = 'Never';
+            }
+        }
+
+        // Initialize stats when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchStats().then(() => {
+                // Update stats periodically
+                setInterval(async () => {
+                    if (!appState.scenarioActive) {
+                        await fetchStats();
+                    }
+                }, 30000); // Every 30 seconds
+            });
+        });
+
+        // Track when users start scenarios by modifying the button click handler
+        function initializeStatsTracking() {
+            const startButton = document.getElementById('btn-start-scenario');
+            if (startButton) {
+                startButton.addEventListener('click', () => {
+                    incrementStats();
+                });
+            }
+        }
+
+        // Call this after DOM is ready
+        setTimeout(initializeStatsTracking, 100);
+    </script>
+</body>
+</html>
