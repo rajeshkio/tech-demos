@@ -793,7 +793,7 @@
                     </svg>
                     LinkedIn
                 </a>
-                <a href="https://medium.com/@rk90229/kubernetes-certificate-management-from-outages-to-automation-f4ddc518becd?sk=4d3dacea415a7b28f6a797e000c8cf8a" class="footer-link blog" target="_blank">
+                <a href="https://blogs.learningdevops.com/kubernetes-certificate-management-from-outages-to-automation-f4ddc518becd" class="footer-link blog" target="_blank">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
                     </svg>
@@ -1163,7 +1163,7 @@
                 updateScenarioInfo();
             });
 
-            elements.btnStartScenario.addEventListener('click', startScenario);
+            elements.btnStartScenario.addEventListener('click', startScenarioWithStats);
             elements.btnNextStep.addEventListener('click', nextScenarioStep);
             elements.btnReset.addEventListener('click', resetLab);
 
@@ -1416,6 +1416,7 @@
             const scenario = learningScenarios[appState.currentScenario];
             addTerminalLine(`🎉 Scenario Complete: ${scenario.name}`, 'success');
             addTerminalLine(`✅ You've successfully completed this learning scenario!`, 'success');
+            
             appState.scenarioActive = false;
             elements.btnNextStep.disabled = true;
             elements.btnStartScenario.textContent = '▶️ Start Another';
@@ -1445,6 +1446,9 @@
             
             if (fromManualClick) {
                 addTerminalLine(`💥 Broke ${certificateDefinitions[certId].name} certificate!`, 'error');
+                // Track certificate break action
+                console.log(`Tracking certificate break: ${certId}`);
+                incrementStats();
             }
             updateClusterHealth();
         }
@@ -1658,6 +1662,250 @@
             
             explanationPanel.style.display = 'block';
         }
+
+        // --- STATS FUNCTIONALITY ---
+        let usageStats = {
+            totalTests: 0,
+            testsToday: 0,
+            lastTest: null
+        };
+
+        const isNetlify = window.location.hostname.includes('netlify.app') || window.location.hostname.includes('learningdevops.com');
+        const API_BASE = isNetlify 
+            ? `${window.location.origin}/.netlify/functions`
+            : 'https://demos.learningdevops.com/.netlify/functions';
+
+        async function fetchStats() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+                
+                const response = await fetch(`${API_BASE}/pki-lab-stats`, {
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                usageStats = {
+                    totalTests: data.totalTests || 0,
+                    testsToday: data.testsToday || 0,
+                    lastTest: null
+                };
+                
+                if (data.lastTest) {
+                    if (data.lastTest._seconds) {
+                        usageStats.lastTest = new Date(data.lastTest._seconds * 1000);
+                    } else if (data.lastTest.seconds) {
+                        usageStats.lastTest = new Date(data.lastTest.seconds * 1000);
+                    }
+                }
+                
+                updateUsageDisplay();
+                return true;
+            } catch (error) {
+                console.log('Stats API unavailable, using local stats');
+                loadLocalStats();
+                return false;
+            }
+        }
+        
+        async function incrementStats() {
+            console.log('Attempting to increment stats...');
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout for POST
+                
+                const response = await fetch(`${API_BASE}/pki-lab-stats`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                console.log('Stats API response:', data);
+                
+                usageStats = {
+                    totalTests: data.totalTests || 0,
+                    testsToday: data.testsToday || 0,
+                    lastTest: null
+                };
+                
+                if (data.lastTest) {
+                    if (data.lastTest._seconds) {
+                        usageStats.lastTest = new Date(data.lastTest._seconds * 1000);
+                    } else if (data.lastTest.seconds) {
+                        usageStats.lastTest = new Date(data.lastTest.seconds * 1000);
+                    }
+                } else {
+                    usageStats.lastTest = new Date(); // Set current time if no lastTest returned
+                }
+                
+                console.log('Updated usageStats:', usageStats);
+                updateUsageDisplay();
+                return true;
+            } catch (error) {
+                console.log('Stats increment failed, using local stats:', error);
+                incrementLocalStats();
+                return false;
+            }
+        }
+        
+        function loadLocalStats() {
+            try {
+                const stored = localStorage.getItem('pkiLabUsageStats');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    usageStats = {
+                        totalTests: parsed.totalTests || 0,
+                        testsToday: parsed.testsToday || 0,
+                        lastTest: parsed.lastTest ? new Date(parsed.lastTest) : null
+                    };
+                }
+            } catch (error) {
+                console.log('Local stats loading failed');
+                usageStats = { totalTests: 0, testsToday: 0, lastTest: null };
+            }
+            updateUsageDisplay();
+        }
+        
+        function incrementLocalStats() {
+            console.log('Incrementing local stats...');
+            usageStats.totalTests++;
+            usageStats.testsToday++;
+            usageStats.lastTest = new Date();
+            
+            console.log('Local stats updated:', usageStats);
+            
+            try {
+                localStorage.setItem('pkiLabUsageStats', JSON.stringify(usageStats));
+            } catch (error) {
+                console.log('Local stats save failed');
+            }
+            updateUsageDisplay();
+        }
+        
+        function updateUsageDisplay() {
+            console.log('Updating usage display with:', usageStats);
+            
+            const totalTestsEl = document.getElementById('totalTests');
+            const testsTodayEl = document.getElementById('testsToday');
+            const lastTestEl = document.getElementById('lastTest');
+            const connectionStatusEl = document.getElementById('connectionStatus');
+            
+            if (!totalTestsEl) {
+                console.log('Stats elements not found!');
+                return;
+            }
+            
+            totalTestsEl.textContent = usageStats.totalTests.toLocaleString();
+            testsTodayEl.textContent = usageStats.testsToday;
+            
+            console.log('Updated DOM elements - total:', totalTestsEl.textContent, 'today:', testsTodayEl.textContent);
+            
+            if (isNetlify) {
+                connectionStatusEl.innerHTML = '🏭 <strong>Production Lab</strong>';
+                connectionStatusEl.style.color = '#48bb78';
+            } else {
+                connectionStatusEl.innerHTML = '🧪 <strong>Local Demo</strong>';
+                connectionStatusEl.style.color = '#f6e05e';
+            }
+            
+            if (usageStats.lastTest && usageStats.lastTest instanceof Date && !isNaN(usageStats.lastTest)) {
+                const lastTime = usageStats.lastTest;
+                const now = new Date();
+                const diffMinutes = Math.floor((now - lastTime) / 60000);
+                
+                let timeText;
+                if (diffMinutes < 1) {
+                    timeText = 'Just now';
+                } else if (diffMinutes < 60) {
+                    timeText = `${diffMinutes}m ago`;
+                } else if (diffMinutes < 1440) {
+                    timeText = `${Math.floor(diffMinutes / 60)}h ago`;
+                } else {
+                    timeText = lastTime.toLocaleDateString();
+                }
+                
+                lastTestEl.textContent = timeText;
+                console.log('Updated last test time:', timeText);
+            } else {
+                lastTestEl.textContent = 'Never';
+            }
+        }
+
+        // Initialize stats with timeout protection
+        document.addEventListener('DOMContentLoaded', () => {
+            // Set initial "loading" state
+            setTimeout(() => {
+                const connectionStatusEl = document.getElementById('connectionStatus');
+                if (connectionStatusEl && connectionStatusEl.textContent.includes('Connecting')) {
+                    connectionStatusEl.innerHTML = '🔄 <strong>Loading stats...</strong>';
+                    connectionStatusEl.style.color = '#718096';
+                }
+            }, 100);
+            
+            // Try to fetch stats with graceful degradation
+            fetchStats().then(success => {
+                if (success) {
+                    // Refresh stats periodically if API is working
+                    setInterval(() => {
+                        if (!appState.scenarioActive) {
+                            fetchStats();
+                        }
+                    }, 30000); // Every 30 seconds when not actively using
+                }
+            });
+        });
+
+        // Track scenario starts for stats - integrate directly into the startScenario function
+        function startScenarioWithStats() {
+            if (appState.scenarioActive) {
+                return;
+            }
+            
+            // Call the original startScenario logic (NO stats tracking here)
+            resetLab(false);
+            appState.scenarioActive = true;
+            appState.scenarioStep = 0;
+            elements.btnStartScenario.style.display = 'none';
+            elements.btnNextStep.style.display = 'inline-block';
+            elements.btnNextStep.disabled = false;
+            elements.scenarioSelect.disabled = true;
+
+            const scenario = learningScenarios[appState.currentScenario];
+            addTerminalLine(`🎯 Starting Scenario: ${scenario.name}`, 'info');
+            
+            if (scenario.allowManipulation) {
+                addTerminalLine(`💡 In this scenario, you can manually break and fix certificates using the buttons.`, 'info');
+            } else {
+                addTerminalLine(`🔍 Investigation Mode: Use kubectl and openssl commands to diagnose issues.`, 'warning');
+                
+                if (scenario.autoBreakOnStart && Array.isArray(scenario.autoBreakOnStart)) {
+                    setTimeout(() => {
+                        addTerminalLine(`⚠️  Simulating overnight certificate expiry...`, 'warning');
+                        scenario.autoBreakOnStart.forEach(certId => {
+                            if (certificateDefinitions[certId] && !appState.brokenCertificates.has(certId)) {
+                                addTerminalLine(`💥 SYSTEM: ${certificateDefinitions[certId].name} certificate expired!`, 'error');
+                                breakCertificateById(certId, false);
+                            }
+                        });
+                        addTerminalLine(`📞 Multiple alerts received - cluster is experiencing issues!`, 'error');
+                    }, 1000);
+                }
+            }
+            
+            setTimeout(() => {
+                executeScenarioStep();
+            }, 100);
+        }
+        
+        // Replace the global startScenario function
+        window.startScenario = startScenarioWithStats;
     </script>
 </body>
 </html>
