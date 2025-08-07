@@ -1,0 +1,1690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Go Concurrency Patterns Interactive Demo</title>
+    <meta name="description" content="An interactive step-by-step guide to learning Go concurrency patterns from sequential code to production-ready goroutines with channels and context.">
+    <style>
+        :root {
+            --primary: #667eea;
+            --dark: #2d3748;
+            --success: #38a169;
+            --error: #c53030;
+            --warning: #d69e2e;
+            --bg: #f8fafc;
+            --terminal: #1a202c;
+            --text-light: #e2e8f0;
+            --text-dark: #2d3748;
+            --text-muted: #718096;
+            --border: #e2e8f0;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: var(--font-sans);
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            padding: 0.5rem;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: auto;
+            background: var(--bg);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--dark) 0%, #4a5568 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 { 
+            font-size: 2.5rem; 
+            margin-bottom: 0.5rem; 
+        }
+        
+        .header p { 
+            font-size: 1.1rem; 
+            opacity: 0.9; 
+        }
+
+        .progress-bar {
+            background: white;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .steps {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            flex: 1;
+        }
+
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            color: #4a5568;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+            position: relative;
+            z-index: 2;
+        }
+
+        .step-title {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--dark);
+            text-align: center;
+        }
+
+        .step.active .step-number {
+            background: var(--primary);
+            color: white;
+        }
+
+        .step.completed .step-number {
+            background: var(--success);
+            color: white;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            top: 14px;
+            left: 50%;
+            width: 100%;
+            height: 2px;
+            background: #e2e8f0;
+            z-index: 1;
+        }
+
+        .step.completed:not(:last-child)::after {
+            background: var(--success);
+        }
+
+        .current-step {
+            background: white;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .step-header {
+            text-align: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .step-header h2 {
+            color: var(--dark);
+            font-size: 1.2rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .step-description {
+            color: #6b7280;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 0.5rem 0;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.8rem;
+            margin: 0 0.25rem;
+        }
+
+        .btn-run { 
+            background: var(--primary); 
+            color: white; 
+        }
+        
+        .btn-reset { 
+            background: #6b7280; 
+            color: white; 
+        }
+        
+        .btn:hover:not(:disabled) { 
+            transform: translateY(-1px); 
+            filter: brightness(1.1);
+        }
+        
+        .btn:disabled { 
+            background: #bdc3c7; 
+            cursor: not-allowed; 
+            transform: none;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: 600px; /* Increased back to give more space for content */
+        }
+
+        .code-panel {
+            background: white;
+            padding: 1.5rem;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .code-header {
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .code-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--dark);
+        }
+
+        .code-container {
+            background: var(--terminal);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'SF Mono', 'Monaco', monospace;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            color: var(--text-light);
+            white-space: pre-wrap;
+            flex-grow: 1;
+            overflow-y: auto; /* Allow scrolling for code if needed */
+            display: block;
+        }
+
+        .keyword { color: #ff6b6b; font-weight: 600; }
+        .type { color: #4ecdc4; }
+        .string { color: #95e1d3; }
+        .comment { color: #6c757d; font-style: italic; }
+        .function { color: #74b9ff; }
+        .number { color: #fd79a8; }
+
+        .execution-panel {
+            background: var(--terminal);
+            padding: 1.5rem;
+            color: var(--text-light);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .execution-header {
+            margin-bottom: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #4a5568;
+            flex-shrink: 0;
+        }
+
+        .execution-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--text-light);
+        }
+
+        .execution-output {
+            background: #0d1117;
+            border-radius: 6px;
+            padding: 0.75rem;
+            font-family: 'SF Mono', monospace;
+            font-size: 0.75rem;
+            line-height: 1.3;
+            height: 200px; /* Increased from 140px */
+            overflow-y: auto; /* Allow scrolling for execution output */
+            flex-shrink: 0;
+        }
+
+        .output-line {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+        }
+
+        .timestamp {
+            color: #6c757d;
+            margin-right: 0.5rem;
+        }
+
+        .output-success { color: var(--success); }
+        .output-error { color: var(--error); }
+        .output-warning { color: var(--warning); }
+        .output-info { color: #74b9ff; }
+
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 0.5rem;
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background: #2d3748;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+
+        .metric {
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-light);
+        }
+
+        .metric-label {
+            font-size: 0.6rem;
+            color: #a0aec0;
+            margin-top: 0.125rem;
+        }
+
+        .navigation {
+            background: white;
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-btn {
+            padding: 0.5rem 1rem;
+            border: 2px solid var(--primary);
+            border-radius: 6px;
+            background: var(--primary);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: all 0.2s;
+        }
+
+        #step-counter {
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.9rem;
+        }
+
+        .nav-btn:hover:not(:disabled) {
+            background: #0088b8;
+            border-color: #0088b8;
+            transform: translateY(-1px);
+        }
+
+        .nav-btn:disabled {
+            border-color: #bdc3c7;
+            background: #bdc3c7;
+            color: white;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .explanation-section {
+            background: #2d3748;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-top: 0.5rem;
+            flex-grow: 1;
+            overflow-y: auto; /* Allow scrolling for explanations */
+            min-height: 150px; /* Increased from 100px */
+        }
+
+        .explanation-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid #4a5568;
+            padding-bottom: 0.25rem;
+        }
+
+        .explanation-content {
+            font-size: 0.75rem;
+            line-height: 1.4;
+            color: #e2e8f0;
+            overflow: visible;
+        }
+
+        .explanation-content h4 {
+            color: var(--primary);
+            margin: 0.5rem 0 0.25rem 0;
+            font-size: 0.8rem;
+        }
+
+        .explanation-content ul {
+            margin: 0.25rem 0;
+            padding-left: 1rem;
+        }
+
+        .explanation-content li {
+            margin: 0.125rem 0;
+            color: #cbd5e0;
+        }
+
+        .usage-stats {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-top: 1px solid var(--border);
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        
+        .usage-stats .highlight {
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .footer {
+            padding: 20px 30px;
+            background: var(--bg);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .footer-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .footer-link:hover {
+            background: #edf2f7;
+            color: var(--text-dark);
+            transform: translateY(-1px);
+        }
+        
+        .footer-link.linkedin:hover {
+            background: #0077b5;
+            color: white;
+        }
+        
+        .footer-link.back:hover {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .footer-link.blog:hover {
+            background: #f56565;
+            color: white;
+        }
+        
+        .footer-credits {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 1000px) {
+            .main-content { grid-template-columns: 1fr; }
+            .code-panel { border-right: none; border-bottom: 1px solid var(--border); }
+            .steps { flex-direction: column; gap: 1rem; }
+            .step::after { display: none; }
+            .navigation { flex-direction: column; gap: 1rem; text-align: center; }
+            .footer {
+                flex-direction: column;
+                text-align: center;
+            }
+            .footer-links {
+                justify-content: center;
+            }
+        }
+
+        .explanation-content .highlight {
+            background: #4a5568;
+            padding: 0.1rem 0.2rem;
+            border-radius: 3px;
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🚀 Go Concurrency Patterns Demo</h1>
+            <p>Step-by-step progression from sequential to concurrent code with real performance comparisons</p>
+        </header>
+
+        <section class="progress-bar">
+            <div class="steps">
+                <div class="step active" data-step="0">
+                    <div class="step-number">1</div>
+                    <div class="step-title">Sequential Code</div>
+                </div>
+                <div class="step" data-step="1">
+                    <div class="step-number">2</div>
+                    <div class="step-title">Add Goroutines</div>
+                </div>
+                <div class="step" data-step="2">
+                    <div class="step-number">3</div>
+                    <div class="step-title">Fix with Timeout</div>
+                </div>
+                <div class="step" data-step="3">
+                    <div class="step-number">4</div>
+                    <div class="step-title">Add WaitGroup</div>
+                </div>
+                <div class="step" data-step="4">
+                    <div class="step-number">5</div>
+                    <div class="step-title">Handle Errors</div>
+                </div>
+                <div class="step" data-step="5">
+                    <div class="step-number">6</div>
+                    <div class="step-title">Production Ready</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="current-step">
+            <div class="step-header">
+                <h2 id="step-title">Step 1: Sequential Code</h2>
+                <p class="step-description" id="step-description">
+                    A simple web server that fetches data from 3 APIs. Notice how slow it is when everything runs sequentially.
+                </p>
+            </div>
+
+            <div class="controls">
+                <button id="run-code" class="btn btn-run">▶️ Run</button>
+                <button id="reset" class="btn btn-reset">🔄 Reset</button>
+            </div>
+        </section>
+
+        <nav class="navigation">
+            <button id="prev-btn" class="nav-btn">← Previous Step</button>
+            <span id="step-counter">Step 1 of 6</span>
+            <button id="next-btn" class="nav-btn">Next Step →</button>
+        </nav>
+
+        <main class="main-content">
+            <section class="code-panel">
+                <div class="code-header">
+                    <div class="code-title" id="code-title">Current Implementation</div>
+                </div>
+                <div class="code-container" id="code-content">
+                    <!-- Code will be inserted here -->
+                </div>
+            </section>
+            
+            <section class="execution-panel">
+                <div class="execution-header">
+                    <div class="execution-title">Execution Results</div>
+                </div>
+                <div class="execution-output" id="execution-output">
+                    <div class="output-line">
+                        <span class="output-info">Click "Run This Step" to see how this code behaves</span>
+                    </div>
+                </div>
+                
+                <div class="metrics">
+                    <div class="metric">
+                        <div class="metric-value" id="metric-time">0ms</div>
+                        <div class="metric-label">Execution Time</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="metric-goroutines">0</div>
+                        <div class="metric-label">Goroutines</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="metric-completed">0</div>
+                        <div class="metric-label">Completed</div>
+                    </div>
+                </div>
+
+                <div class="explanation-section">
+                    <div class="explanation-title">🧠 How This Works & Code Analysis</div>
+                    <div class="explanation-content" id="explanation-content">
+                        <p>Select a step and run it to see detailed explanation of execution flow and code analysis.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <div class="usage-stats">
+            <span id="connectionStatus">🔄 Connecting to global stats...</span> •
+            <span class="highlight" id="totalSteps">0</span> total steps completed 
+            • <span class="highlight" id="stepsToday">0</span> today 
+            • Last completion: <span class="highlight" id="lastCompletion">Never</span>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-links">
+                <a href="https://demos.learningdevops.com/" class="footer-link back">
+                    ← Back to Demos
+                </a>
+                <a href="https://www.linkedin.com/in/techwith-rajesh/" class="footer-link linkedin" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                    LinkedIn
+                </a>
+                <a href="https://medium.com/@rk90229/mastering-go-concurrency-from-sequential-to-production-ready-patterns-d4b2c8f4e5a3" class="footer-link blog" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    Blog Article
+                </a>
+            </div>
+            <div class="footer-credits">
+                Built with Go • Goroutines • Channels • Context
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let currentStep = 0;
+        let isRunning = false;
+        let metrics = { time: 0, goroutines: 0, completed: 0 };
+
+        // Global stats tracking
+        let usageStats = {
+            totalSteps: 0,
+            stepsToday: 0,
+            lastCompletion: null
+        };
+
+        // Auto-detect Netlify function endpoint
+        const isNetlify = window.location.hostname.includes('netlify.app');
+        const API_BASE = isNetlify 
+            ? `${window.location.origin}/.netlify/functions`
+            : 'https://aesthetic-croissant-a06c3f.netlify.app/.netlify/functions';
+
+        // Step definitions
+        const steps = [
+            {
+                title: "Step 1: Sequential Code (The Problem)",
+                description: "A simple web server that fetches data from 3 APIs. Notice how slow it is when everything runs sequentially.",
+                code: `package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+    "time"
+)
+
+func fetchData(url string) string {
+    fmt.Printf("Fetching %s...\\n", url)
+    
+    // Simulate API call delay
+    time.Sleep(1 * time.Second)
+    
+    fmt.Printf("✅ Completed %s\\n", url)
+    return fmt.Sprintf("Data from %s", url)
+}
+
+func handleRequest() {
+    start := time.Now()
+    
+    // Sequential API calls - each waits for the previous
+    data1 := fetchData("api.users.com")
+    data2 := fetchData("api.orders.com") 
+    data3 := fetchData("api.payments.com")
+    
+    fmt.Printf("All data: %s, %s, %s\\n", data1, data2, data3)
+    fmt.Printf("Total time: %v\\n", time.Since(start))
+}
+
+func main() {
+    handleRequest()
+}`,
+                explanation: "This code is slow because each API call waits for the previous one to finish. Total time: ~3 seconds.",
+                detailedExplanation: `
+                    <h4>🔍 What happens when you run this code</h4>
+                    <p>This code calls 3 APIs one after another. Each API takes 1 second, so the total time is 3 seconds:</p>
+                    <ul>
+                        <li><strong>0 seconds:</strong> Start calling first API</li>
+                        <li><strong>1 second:</strong> First API done, start second API</li>
+                        <li><strong>2 seconds:</strong> Second API done, start third API</li>
+                        <li><strong>3 seconds:</strong> All APIs done</li>
+                    </ul>
+                    
+                    <h4>🐌 Why this is slow</h4>
+                    <ul>
+                        <li><strong>Waiting around:</strong> Your program sits idle while waiting for each API</li>
+                        <li><strong>Wasted time:</strong> You could call all 3 APIs at the same time</li>
+                        <li><strong>Poor user experience:</strong> 3+ seconds feels very slow</li>
+                        <li><strong>Doesn't scale:</strong> 10 APIs would take 10 seconds!</li>
+                    </ul>
+                    
+                    <h4>💡 Key parts of the code</h4>
+                    <ul>
+                        <li><span class="highlight">time.Sleep(1 * time.Second)</span> pretends to call an API</li>
+                        <li><span class="highlight">time.Since(start)</span> shows how long everything took</li>
+                        <li>Each function waits for the previous one to finish</li>
+                    </ul>
+                `
+            },
+            {
+                title: "Step 2: Add Goroutines (Creates New Problems)",
+                description: "Add goroutines to make API calls concurrent, but see what problems this creates - the main function exits before goroutines finish!",
+                code: `package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+    "time"
+)
+
+func fetchData(url string) string {
+    fmt.Printf("Fetching %s...\\n", url)
+    time.Sleep(1 * time.Second)
+    fmt.Printf("✅ Completed %s\\n", url)
+    return fmt.Sprintf("Data from %s", url)
+}
+
+func handleRequest() {
+    start := time.Now()
+    
+    // PROBLEM: Launch goroutines but don't wait for them!
+    go fetchData("api.users.com")
+    go fetchData("api.orders.com")
+    go fetchData("api.payments.com")
+    
+    // Main function exits immediately!
+    fmt.Printf("Total time: %v\\n", time.Since(start))
+    fmt.Printf("⚠️ But goroutines might still be running...\\n")
+}
+
+func main() {
+    handleRequest()
+}`,
+                explanation: "Problem: Main function exits immediately, killing the goroutines before they finish. We need synchronization!",
+                detailedExplanation: `
+                    <h4>⚡ What the <span class="highlight">go</span> keyword does</h4>
+                    <ul>
+                        <li><strong>Starts things in the background:</strong> Like opening 3 browser tabs at once</li>
+                        <li><strong>Doesn't wait:</strong> <span class="highlight">go fetchData()</span> starts immediately and moves on</li>
+                        <li><strong>Runs at the same time:</strong> All 3 API calls could happen together</li>
+                        <li><strong>Can't get results back:</strong> You lose the return values</li>
+                    </ul>
+                    
+                    <h4>💥 The Big Problem</h4>
+                    <p>Here's what actually happens:</p>
+                    <ul>
+                        <li><strong>0ms:</strong> Start 3 background tasks (super fast)</li>
+                        <li><strong>1ms:</strong> Print the time and exit the program</li>
+                        <li><strong>2ms:</strong> Program ends, killing all background work!</li>
+                    </ul>
+                    
+                    <h4>🔄 Why this happens</h4>
+                    <ul>
+                        <li><strong>Main program:</strong> Runs the show - when it's done, everything stops</li>
+                        <li><strong>Background tasks:</strong> Get killed when main program exits</li>
+                        <li><strong>Lost work:</strong> APIs never finish, data is lost</li>
+                        <li><strong>Timing problem:</strong> Main program is too fast!</li>
+                    </ul>
+                `
+            },
+            {
+                title: "Step 3: Add Sleep Timeout (Bad Fix)",
+                description: "Add a sleep to wait for goroutines, but this is unreliable - what if some APIs are slower than expected?",
+                code: `package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+    "time"
+)
+
+func fetchData(url string) {
+    fmt.Printf("Fetching %s...\\n", url)
+    time.Sleep(1 * time.Second)
+    fmt.Printf("✅ Completed %s\\n", url)
+}
+
+func handleRequest() {
+    start := time.Now()
+    
+    // Launch goroutines
+    go fetchData("api.users.com")
+    go fetchData("api.orders.com") 
+    go fetchData("api.payments.com")
+    
+    // BAD FIX: Guess how long to wait
+    fmt.Printf("Waiting 2 seconds for goroutines...\\n")
+    time.Sleep(2 * time.Second)
+    
+    fmt.Printf("Total time: %v\\n", time.Since(start))
+    fmt.Printf("🤔 Did all goroutines finish? We don't know!\\n")
+}
+
+func main() {
+    handleRequest()
+}`,
+                explanation: "Problem: Fixed timeout is unreliable. What if APIs take longer? What if they finish early? We're wasting time.",
+                detailedExplanation: `
+                    <h4>🕒 The Guessing Game</h4>
+                    <p>This approach uses <span class="highlight">time.Sleep(2 * time.Second)</span> to wait, but it's just guessing:</p>
+                    <ul>
+                        <li><strong>2 seconds is a guess:</strong> We don't actually know when APIs finish</li>
+                        <li><strong>Might be too short:</strong> APIs could take 3 seconds, we quit too early</li>
+                        <li><strong>Might be too long:</strong> APIs finish in 800ms, we wait extra 1.2 seconds</li>
+                        <li><strong>Unreliable:</strong> Network speed changes, this breaks</li>
+                    </ul>
+                    
+                    <h4>🎯 What could go wrong</h4>
+                    <ul>
+                        <li><strong>Fast network:</strong> APIs finish in 1s, we still wait 2s = wasted time</li>
+                        <li><strong>Slow network:</strong> APIs take 2.5s, we exit at 2s = lost data</li>
+                        <li><strong>Real world:</strong> API speed changes throughout the day</li>
+                        <li><strong>Production problems:</strong> Sometimes works, sometimes doesn't</li>
+                    </ul>
+                    
+                    <h4>🏭 Why this fails in real apps</h4>
+                    <ul>
+                        <li><strong>Can't guarantee completion:</strong> You never know if APIs actually finished</li>
+                        <li><strong>Wastes time:</strong> Your program is stuck sleeping instead of working</li>
+                        <li><strong>Hard to debug:</strong> Works on your computer, fails for users</li>
+                    </ul>
+                `
+            },
+            {
+                title: "Step 4: Add WaitGroup (Proper Synchronization)",
+                description: "Use sync.WaitGroup to properly wait for all goroutines to complete. Now we know exactly when everything is done!",
+                code: `package main
+
+import (
+    "fmt"
+    "log"
+    "net/http"
+    "sync"
+    "time"
+)
+
+func fetchData(url string, wg *sync.WaitGroup) {
+    defer wg.Done() // Signal completion when function exits
+    
+    fmt.Printf("Fetching %s...\\n", url)
+    time.Sleep(1 * time.Second)
+    fmt.Printf("✅ Completed %s\\n", url)
+}
+
+func handleRequest() {
+    start := time.Now()
+    var wg sync.WaitGroup
+    
+    // Add 3 to the WaitGroup counter
+    wg.Add(3)
+    
+    // Launch goroutines
+    go fetchData("api.users.com", &wg)
+    go fetchData("api.orders.com", &wg)
+    go fetchData("api.payments.com", &wg)
+    
+    // Wait for all goroutines to complete
+    fmt.Printf("Waiting for all API calls...\\n")
+    wg.Wait()
+    
+    fmt.Printf("✅ All APIs completed!\\n")
+    fmt.Printf("Total time: %v\\n", time.Since(start))
+}
+
+func main() {
+    handleRequest()
+}`,
+                explanation: "Much better! WaitGroup ensures we wait for exactly the right amount of time - no more, no less.",
+                detailedExplanation: `
+                    <h4>🎯 How WaitGroup solves the problem</h4>
+                    <p>The <span class="highlight">sync.WaitGroup</span> is like a counter that tracks unfinished work:</p>
+                    <ul>
+                        <li><strong>Set counter:</strong> <span class="highlight">wg.Add(3)</span> says "I have 3 tasks to do"</li>
+                        <li><strong>Mark done:</strong> <span class="highlight">defer wg.Done()</span> says "this task is finished"</li>
+                        <li><strong>Wait for all:</strong> <span class="highlight">wg.Wait()</span> says "don't continue until all tasks are done"</li>
+                        <li><strong>Perfect timing:</strong> Waits exactly as long as needed, no more, no less</li>
+                    </ul>
+                    
+                    <h4>📊 How it works step by step</h4>
+                    <ul>
+                        <li><strong>0ms:</strong> Set counter to 3, start 3 background tasks</li>
+                        <li><strong>1ms:</strong> Main program waits at <span class="highlight">wg.Wait()</span></li>
+                        <li><strong>1000ms:</strong> First task finishes, counter becomes 2</li>
+                        <li><strong>1200ms:</strong> Second task finishes, counter becomes 1</li>
+                        <li><strong>1300ms:</strong> Third task finishes, counter becomes 0</li>
+                        <li><strong>1301ms:</strong> Counter is 0, main program continues!</li>
+                    </ul>
+                    
+                    <h4>🛡️ Why this is much better</h4>
+                    <ul>
+                        <li><strong>Always waits for all tasks:</strong> Never loses work</li>
+                        <li><strong>No wasted time:</strong> Continues the moment everything is done</li>
+                        <li><strong>Reliable:</strong> Works the same way every time</li>
+                        <li><strong>Works with any number:</strong> 3 APIs or 300 APIs</li>
+                    </ul>
+                    
+                    <h4>⚡ The defer trick</h4>
+                    <p><span class="highlight">defer wg.Done()</span> is special - it runs when the function exits:</p>
+                    <ul>
+                        <li><strong>Always runs:</strong> Even if the function crashes</li>
+                        <li><strong>Prevents stuck programs:</strong> Counter always gets decremented</li>
+                        <li><strong>Clean code:</strong> Put it at the top, forget about it</li>
+                    </ul>
+                `
+            },
+            {
+                title: "Step 5: Handle Errors Properly",
+                description: "Add proper error handling with channels to collect results and errors from goroutines.",
+                code: `package main
+
+import (
+    "fmt"
+    "log"
+    "math/rand"
+    "sync"
+    "time"
+)
+
+type Result struct {
+    URL  string
+    Data string
+    Err  error
+}
+
+func fetchData(url string, resultChan chan<- Result, wg *sync.WaitGroup) {
+    defer wg.Done()
+    
+    fmt.Printf("Fetching %s...\\n", url)
+    time.Sleep(1 * time.Second)
+    
+    // Simulate occasional API failures
+    if rand.Float32() < 0.2 { // 20% chance of failure
+        resultChan <- Result{URL: url, Err: fmt.Errorf("API %s failed", url)}
+        return
+    }
+    
+    data := fmt.Sprintf("Data from %s", url)
+    resultChan <- Result{URL: url, Data: data}
+    fmt.Printf("✅ Completed %s\\n", url)
+}
+
+func handleRequest() {
+    start := time.Now()
+    var wg sync.WaitGroup
+    resultChan := make(chan Result, 3)
+    
+    apis := []string{"api.users.com", "api.orders.com", "api.payments.com"}
+    wg.Add(len(apis))
+    
+    // Launch goroutines
+    for _, api := range apis {
+        go fetchData(api, resultChan, &wg)
+    }
+    
+    // Wait for all goroutines and close channel
+    go func() {
+        wg.Wait()
+        close(resultChan)
+    }()
+    
+    // Collect results
+    var results []Result
+    for result := range resultChan {
+        results = append(results, result)
+        if result.Err != nil {
+            fmt.Printf("❌ Error from %s: %v\\n", result.URL, result.Err)
+        } else {
+            fmt.Printf("📦 Got: %s\\n", result.Data)
+        }
+    }
+    
+    fmt.Printf("✅ Processed %d API calls\\n", len(results))
+    fmt.Printf("Total time: %v\\n", time.Since(start))
+}
+
+func main() {
+    rand.Seed(time.Now().UnixNano())
+    handleRequest()
+}`,
+                explanation: "Now we properly handle errors and collect results from all goroutines using channels.",
+                detailedExplanation: `
+                    <h4>📨 Getting results back from background tasks</h4>
+                    <p>Channels solve the problem of collecting results from background tasks:</p>
+                    <ul>
+                        <li><strong>Like a mailbox:</strong> Background tasks drop results in the channel</li>
+                        <li><strong>Safe to use:</strong> <span class="highlight">chan<- Result</span> means "can only put things in"</li>
+                        <li><strong>Buffered channel:</strong> <span class="highlight">make(chan Result, 3)</span> holds up to 3 results</li>
+                        <li><strong>Handles both success and errors:</strong> <span class="highlight">Result struct</span> can hold data or error</li>
+                    </ul>
+                    
+                    <h4>⚡ The closing pattern</h4>
+                    <p>We use a separate background task just to close the channel:</p>
+                    <ul>
+                        <li><strong>Waits for all work:</strong> Uses WaitGroup to know when everything is done</li>
+                        <li><strong>Closes the mailbox:</strong> <span class="highlight">close(resultChan)</span> signals "no more results"</li>
+                        <li><strong>Stops the loop:</strong> <span class="highlight">for result := range resultChan</span> ends when closed</li>
+                        <li><strong>Clean shutdown:</strong> Program knows exactly when to stop reading</li>
+                    </ul>
+                    
+                    <h4>🛠️ How error handling works</h4>
+                    <ul>
+                        <li><strong>Keep going:</strong> If one API fails, others still continue</li>
+                        <li><strong>Collect everything:</strong> Get both successful results and errors</li>
+                        <li><strong>No lost data:</strong> All results are saved, even if some fail</li>
+                        <li><strong>Clear reporting:</strong> You know exactly what succeeded and what failed</li>
+                    </ul>
+                    
+                    <h4>🎯 Why this is production-ready</h4>
+                    <ul>
+                        <li><strong>Nothing gets lost:</strong> Channel closes properly even if tasks fail</li>
+                        <li><strong>No memory leaks:</strong> Buffered channel prevents tasks from getting stuck</li>
+                        <li><strong>Good logging:</strong> Detailed reports of what happened</li>
+                        <li><strong>Partial success:</strong> App works even if some APIs are down</li>
+                    </ul>
+                `
+            },
+            {
+                title: "Step 6: Production Ready (Context & Timeouts)",
+                description: "Add context for cancellation and timeouts - this is production-ready concurrent code!",
+                code: `package main
+
+import (
+    "context"
+    "fmt"
+    "log"
+    "math/rand"
+    "sync"
+    "time"
+)
+
+type Result struct {
+    URL  string
+    Data string
+    Err  error
+}
+
+func fetchData(ctx context.Context, url string, resultChan chan<- Result, wg *sync.WaitGroup) {
+    defer wg.Done()
+    
+    fmt.Printf("Fetching %s...\\n", url)
+    
+    // Simulate API call with context cancellation
+    select {
+    case <-time.After(1 * time.Second):
+        // API call completed
+        if rand.Float32() < 0.2 {
+            resultChan <- Result{URL: url, Err: fmt.Errorf("API %s failed", url)}
+            return
+        }
+        data := fmt.Sprintf("Data from %s", url)
+        resultChan <- Result{URL: url, Data: data}
+        fmt.Printf("✅ Completed %s\\n", url)
+        
+    case <-ctx.Done():
+        // Context cancelled (timeout or manual cancellation)
+        resultChan <- Result{URL: url, Err: fmt.Errorf("API %s cancelled: %v", url, ctx.Err())}
+        fmt.Printf("⏹️ Cancelled %s\\n", url)
+    }
+}
+
+func handleRequest() {
+    start := time.Now()
+    
+    // Create context with timeout
+    ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+    defer cancel()
+    
+    var wg sync.WaitGroup
+    resultChan := make(chan Result, 3)
+    
+    apis := []string{"api.users.com", "api.orders.com", "api.payments.com"}
+    wg.Add(len(apis))
+    
+    // Launch goroutines with context
+    for _, api := range apis {
+        go fetchData(ctx, api, resultChan, &wg)
+    }
+    
+    // Wait for completion or timeout
+    go func() {
+        wg.Wait()
+        close(resultChan)
+    }()
+    
+    // Collect results
+    var successful, failed int
+    for result := range resultChan {
+        if result.Err != nil {
+            fmt.Printf("❌ Error from %s: %v\\n", result.URL, result.Err)
+            failed++
+        } else {
+            fmt.Printf("📦 Got: %s\\n", result.Data)
+            successful++
+        }
+    }
+    
+    fmt.Printf("✅ Success: %d, Failed: %d\\n", successful, failed)
+    fmt.Printf("Total time: %v\\n", time.Since(start))
+}
+
+func main() {
+    rand.Seed(time.Now().UnixNano())
+    handleRequest()
+}`,
+                explanation: "Production ready! Context provides cancellation, timeouts, and proper resource cleanup.",
+                detailedExplanation: `
+                    <h4>🎯 Context: The master control switch</h4>
+                    <p>Context provides a way to cancel all background work when needed:</p>
+                    <ul>
+                        <li><strong>Timeout control:</strong> <span class="highlight">context.WithTimeout(3*time.Second)</span> sets a hard limit</li>
+                        <li><strong>Cancel everything:</strong> One cancel button affects all background tasks</li>
+                        <li><strong>Automatic cleanup:</strong> <span class="highlight">defer cancel()</span> cleans up when done</li>
+                        <li><strong>Cancellation signal:</strong> <span class="highlight">ctx.Done()</span> tells tasks "time to stop"</li>
+                    </ul>
+                    
+                    <h4>⚔️ The select statement: Choose the winner</h4>
+                    <p>Select lets tasks wait for multiple things at once and pick the first one that happens:</p>
+                    <ul>
+                        <li><strong>Race between options:</strong> Either API finishes OR timeout happens</li>
+                        <li><strong>Timeout option:</strong> <span class="highlight">time.After()</span> creates a timer</li>
+                        <li><strong>Cancel option:</strong> <span class="highlight">ctx.Done()</span> for when time runs out</li>
+                        <li><strong>Fair competition:</strong> Go picks whichever happens first</li>
+                    </ul>
+                    
+                    <h4>🏭 Ready for real-world use</h4>
+                    <ul>
+                        <li><strong>Partial success:</strong> Get some results even if others timeout</li>
+                        <li><strong>No runaway tasks:</strong> Everything stops when it should</li>
+                        <li><strong>Clear reporting:</strong> Know exactly what succeeded, failed, or timed out</li>
+                        <li><strong>Resource protection:</strong> Never waste time on tasks that take too long</li>
+                    </ul>
+                    
+                    <h4>🚀 Where you'd use this</h4>
+                    <ul>
+                        <li><strong>Web servers:</strong> Don't let slow requests bog down your server</li>
+                        <li><strong>Database queries:</strong> Cancel slow queries instead of waiting forever</li>
+                        <li><strong>API calls:</strong> Give up on slow external services</li>
+                        <li><strong>User interfaces:</strong> Let users cancel long-running operations</li>
+                    </ul>
+                    
+                    <h4>⚡ Performance benefits</h4>
+                    <ul>
+                        <li><strong>Optimal speed:</strong> Finishes as soon as the last task completes</li>
+                        <li><strong>Low overhead:</strong> Context system is very lightweight</li>
+                        <li><strong>Scales well:</strong> Works with thousands of background tasks</li>
+                        <li><strong>Smart timing:</strong> Never waits longer than necessary</li>
+                    </ul>
+                `
+            }
+        ];
+
+        // DOM elements
+        const elements = {
+            stepTitle: document.getElementById('step-title'),
+            stepDescription: document.getElementById('step-description'),
+            codeTitle: document.getElementById('code-title'),
+            codeContent: document.getElementById('code-content'),
+            executionOutput: document.getElementById('execution-output'),
+            explanationContent: document.getElementById('explanation-content'),
+            runBtn: document.getElementById('run-code'),
+            resetBtn: document.getElementById('reset'),
+            prevBtn: document.getElementById('prev-btn'),
+            nextBtn: document.getElementById('next-btn'),
+            stepCounter: document.getElementById('step-counter'),
+            metricTime: document.getElementById('metric-time'),
+            metricGoroutines: document.getElementById('metric-goroutines'),
+            metricCompleted: document.getElementById('metric-completed'),
+            usage: {
+                connectionStatus: document.getElementById('connectionStatus'),
+                totalSteps: document.getElementById('totalSteps'),
+                stepsToday: document.getElementById('stepsToday'),
+                lastCompletion: document.getElementById('lastCompletion'),
+            }
+        };
+
+        // Utility functions
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+        
+        function formatTimestamp() {
+            return new Date().toLocaleTimeString();
+        }
+
+        // --- STATS FUNCTIONS ---
+        async function fetchStats() {
+            try {
+                const response = await fetch(`${API_BASE}/go-concurrency-stats`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                usageStats = {
+                    totalSteps: data.totalSteps || 0,
+                    stepsToday: data.stepsToday || 0,
+                    lastCompletion: null
+                };
+                
+                if (data.lastCompletion) {
+                    if (data.lastCompletion._seconds) {
+                        usageStats.lastCompletion = new Date(data.lastCompletion._seconds * 1000);
+                    } else if (data.lastCompletion.seconds) {
+                        usageStats.lastCompletion = new Date(data.lastCompletion.seconds * 1000);
+                    }
+                }
+                
+                updateUsageDisplay();
+                return true;
+            } catch (error) {
+                loadLocalStats();
+                return false;
+            }
+        }
+        
+        async function incrementStats() {
+            try {
+                const response = await fetch(`${API_BASE}/go-concurrency-stats`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                usageStats = {
+                    totalSteps: data.totalSteps || 0,
+                    stepsToday: data.stepsToday || 0,
+                    lastCompletion: null
+                };
+                
+                if (data.lastCompletion) {
+                    if (data.lastCompletion._seconds) {
+                        usageStats.lastCompletion = new Date(data.lastCompletion._seconds * 1000);
+                    } else if (data.lastCompletion.seconds) {
+                        usageStats.lastCompletion = new Date(data.lastCompletion.seconds * 1000);
+                    }
+                }
+                
+                updateUsageDisplay();
+                return true;
+            } catch (error) {
+                incrementLocalStats();
+                return false;
+            }
+        }
+        
+        function loadLocalStats() {
+            const stored = localStorage.getItem('goConcurrencyUsageStats');
+            if (stored) {
+                usageStats = JSON.parse(stored);
+                if (usageStats.lastCompletion) {
+                    usageStats.lastCompletion = new Date(usageStats.lastCompletion);
+                }
+            }
+            updateUsageDisplay();
+        }
+        
+        function incrementLocalStats() {
+            usageStats.totalSteps++;
+            usageStats.stepsToday++;
+            usageStats.lastCompletion = new Date();
+            localStorage.setItem('goConcurrencyUsageStats', JSON.stringify(usageStats));
+            updateUsageDisplay();
+        }
+        
+        function updateUsageDisplay() {
+            elements.usage.totalSteps.textContent = usageStats.totalSteps.toLocaleString();
+            elements.usage.stepsToday.textContent = usageStats.stepsToday;
+            
+            if (API_BASE.includes('netlify')) {
+                elements.usage.connectionStatus.innerHTML = '🔒 <strong>Secure Global Stats</strong>';
+                elements.usage.connectionStatus.style.color = '#48bb78';
+            } else {
+                elements.usage.connectionStatus.innerHTML = '📱 <strong>Local Mode</strong>';
+                elements.usage.connectionStatus.style.color = '#f6e05e';
+            }
+            
+            if (usageStats.lastCompletion && usageStats.lastCompletion instanceof Date && !isNaN(usageStats.lastCompletion)) {
+                const lastTime = usageStats.lastCompletion;
+                const now = new Date();
+                const diffMinutes = Math.floor((now - lastTime) / 60000);
+                
+                let timeText;
+                if (diffMinutes < 1) {
+                    timeText = 'Just now';
+                } else if (diffMinutes < 60) {
+                    timeText = `${diffMinutes}m ago`;
+                } else if (diffMinutes < 1440) {
+                    timeText = `${Math.floor(diffMinutes / 60)}h ago`;
+                } else {
+                    timeText = lastTime.toLocaleDateString();
+                }
+                
+                elements.usage.lastCompletion.textContent = timeText;
+            } else {
+                elements.usage.lastCompletion.textContent = 'Never';
+            }
+        }
+
+        function syntaxHighlight(code) {
+            return code
+                .replace(/\b(package|import|func|var|const|type|go|defer|select|case|if|else|for|range|return|nil)\b/g, '<span class="keyword">$1</span>')
+                .replace(/\b(string|int|bool|error|time\.Duration|sync\.WaitGroup|context\.Context|chan)\b/g, '<span class="type">$1</span>')
+                .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="number">$1</span>')
+                .replace(/"([^"]*)"/g, '<span class="string">"$1"</span>')
+                .replace(/`([^`]*)`/g, '<span class="string">`$1`</span>')
+                .replace(/\/\/.*$/gm, '<span class="comment">$&</span>')
+                .replace(/\/\*[\s\S]*?\*\//g, '<span class="comment">$&</span>')
+                .replace(/\b(fmt\.Printf|fmt\.Sprintf|fmt\.Errorf|time\.Sleep|time\.Since|time\.Now|make|close|len|append)\b/g, '<span class="function">$1</span>');
+        }
+
+        function addOutput(text, type = 'info') {
+            const timestamp = formatTimestamp();
+            const line = document.createElement('div');
+            line.className = 'output-line';
+            line.innerHTML = `<span class="timestamp">[${timestamp}]</span> <span class="output-${type}">${text}</span>`;
+            elements.executionOutput.appendChild(line);
+            elements.executionOutput.scrollTop = elements.executionOutput.scrollHeight;
+        }
+
+        function createHighlightedCode(code) {
+            const container = document.createElement('div');
+            const lines = code.split('\n');
+            
+            lines.forEach((line, index) => {
+                if (index > 0) {
+                    container.appendChild(document.createTextNode('\n'));
+                }
+                
+                // Simple highlighting for each line
+                const highlightedLine = line
+                    .replace(/\b(package|import|func|var|const|type|go|defer|select|case|if|else|for|range|return|nil)\b/g, '###KEYWORD_START###$1###KEYWORD_END###')
+                    .replace(/\b(string|int|bool|error|time\.Duration|sync\.WaitGroup|context\.Context|chan)\b/g, '###TYPE_START###$1###TYPE_END###')
+                    .replace(/\b(\d+(?:\.\d+)?)\b/g, '###NUMBER_START###$1###NUMBER_END###')
+                    .replace(/"([^"]*)"/g, '###STRING_START###"$1"###STRING_END###')
+                    .replace(/\/\/.*$/g, '###COMMENT_START###$&###COMMENT_END###')
+                    .replace(/\b(fmt\.Printf|fmt\.Sprintf|fmt\.Errorf|time\.Sleep|time\.Since|time\.Now|make|close|len|append)\b/g, '###FUNCTION_START###$1###FUNCTION_END###');
+                
+                const parts = highlightedLine.split(/(###\w+_(?:START|END)###)/);
+                let currentClass = null;
+                
+                parts.forEach(part => {
+                    if (part.startsWith('###') && part.endsWith('###')) {
+                        const action = part.replace(/###(\w+)_(START|END)###/, '$1_$2');
+                        if (action.endsWith('_START')) {
+                            currentClass = action.replace('_START', '').toLowerCase();
+                        } else {
+                            currentClass = null;
+                        }
+                    } else if (part) {
+                        if (currentClass) {
+                            const span = document.createElement('span');
+                            span.className = currentClass;
+                            span.textContent = part;
+                            container.appendChild(span);
+                        } else {
+                            container.appendChild(document.createTextNode(part));
+                        }
+                    }
+                });
+            });
+            
+            return container;
+        }
+
+        function updateStep() {
+            const step = steps[currentStep];
+            
+            // Update step info
+            elements.stepTitle.textContent = step.title;
+            elements.stepDescription.textContent = step.description;
+            
+            // Clear and set code content using DOM manipulation
+            elements.codeContent.innerHTML = '';
+            const codeElement = createHighlightedCode(step.code.replace(/\\n/g, '\n'));
+            elements.codeContent.appendChild(codeElement);
+            
+            elements.stepCounter.textContent = `Step ${currentStep + 1} of ${steps.length}`;
+            
+            // Update progress indicators
+            document.querySelectorAll('.step').forEach((el, index) => {
+                el.classList.remove('active', 'completed');
+                if (index < currentStep) {
+                    el.classList.add('completed');
+                } else if (index === currentStep) {
+                    el.classList.add('active');
+                }
+            });
+            
+            // Update navigation buttons
+            elements.prevBtn.disabled = currentStep === 0;
+            elements.nextBtn.disabled = currentStep === steps.length - 1;
+            
+            // Clear output and explanation  
+            elements.executionOutput.innerHTML = '<div class="output-line"><span class="output-info">Click "Run" to execute this step</span></div>';
+            elements.explanationContent.innerHTML = '<p>Run this step to see execution flow and code analysis.</p>';
+            
+            // Reset metrics
+            metrics = { time: 0, goroutines: 0, completed: 0 };
+            updateMetrics();
+        }
+
+        function updateMetrics() {
+            elements.metricTime.textContent = metrics.time + 'ms';
+            elements.metricGoroutines.textContent = metrics.goroutines;
+            elements.metricCompleted.textContent = metrics.completed;
+        }
+        // Step simulations  
+        async function runStep() {
+            if (isRunning) return;
+            isRunning = true;
+            elements.runBtn.disabled = true;
+            
+            elements.executionOutput.innerHTML = '';
+            addOutput(`🚀 Running ${steps[currentStep].title}`, 'info');
+            
+            const startTime = Date.now();
+            
+            switch(currentStep) {
+                case 0: await simulateSequential(); break;
+                case 1: await simulateGoroutinesNoWait(); break;
+                case 2: await simulateWithTimeout(); break;
+                case 3: await simulateWithWaitGroup(); break;
+                case 4: await simulateWithErrorHandling(); break;
+                case 5: await simulateProductionReady(); break;
+            }
+            
+            metrics.time = Date.now() - startTime;
+            updateMetrics();
+            
+            addOutput(`✅ Step completed in ${metrics.time}ms`, 'success');
+            addOutput(`💡 ${steps[currentStep].explanation}`, 'info');
+            
+            // Show detailed explanation
+            if (steps[currentStep].detailedExplanation) {
+                elements.explanationContent.innerHTML = steps[currentStep].detailedExplanation;
+            }
+            
+            elements.runBtn.disabled = false;
+            isRunning = false;
+        }
+
+        async function simulateSequential() {
+            addOutput('📡 Starting sequential API calls...', 'info');
+            metrics.goroutines = 1; // Main goroutine only
+            
+            addOutput('Fetching api.users.com...', 'info');
+            await sleep(1000);
+            addOutput('✅ Completed api.users.com', 'success');
+            metrics.completed++;
+            updateMetrics();
+            
+            addOutput('Fetching api.orders.com...', 'info');
+            await sleep(1000);
+            addOutput('✅ Completed api.orders.com', 'success');
+            metrics.completed++;
+            updateMetrics();
+            
+            addOutput('Fetching api.payments.com...', 'info');
+            await sleep(1000);
+            addOutput('✅ Completed api.payments.com', 'success');
+            metrics.completed++;
+            updateMetrics();
+            
+            addOutput('📊 Total time: ~3000ms (each API waits for previous)', 'warning');
+        }
+
+        async function simulateGoroutinesNoWait() {
+            addOutput('🚀 Launching goroutines...', 'info');
+            metrics.goroutines = 4; // Main + 3 goroutines
+            updateMetrics();
+            
+            // Start all goroutines simultaneously
+            addOutput('go fetchData("api.users.com")', 'info');
+            addOutput('go fetchData("api.orders.com")', 'info');
+            addOutput('go fetchData("api.payments.com")', 'info');
+            
+            await sleep(100); // Brief delay to show they start
+            
+            addOutput('⚠️ Main function exits immediately!', 'error');
+            addOutput('🔥 Program terminates - goroutines killed!', 'error');
+            addOutput('📊 Total time: ~100ms (but work was incomplete)', 'warning');
+            
+            // Show some goroutines might have started
+            setTimeout(() => {
+                addOutput('💀 Goroutine: "api.users.com" - killed before completion', 'error');
+                addOutput('💀 Goroutine: "api.orders.com" - killed before completion', 'error');
+                addOutput('💀 Goroutine: "api.payments.com" - killed before completion', 'error');
+            }, 500);
+        }
+
+        async function simulateWithTimeout() {
+            addOutput('🚀 Launching goroutines...', 'info');
+            metrics.goroutines = 4;
+            updateMetrics();
+            
+            // Start goroutines
+            addOutput('go fetchData("api.users.com")', 'info');
+            addOutput('go fetchData("api.orders.com")', 'info');
+            addOutput('go fetchData("api.payments.com")', 'info');
+            
+            await sleep(200);
+            addOutput('⏰ Waiting 2 seconds for goroutines...', 'warning');
+            
+            // Simulate goroutines completing during the wait
+            setTimeout(async () => {
+                addOutput('Fetching api.users.com...', 'info');
+                addOutput('Fetching api.orders.com...', 'info');
+                addOutput('Fetching api.payments.com...', 'info');
+                
+                await sleep(800);
+                addOutput('✅ Completed api.users.com', 'success');
+                addOutput('✅ Completed api.orders.com', 'success');
+                addOutput('✅ Completed api.payments.com', 'success');
+                metrics.completed = 3;
+                updateMetrics();
+            }, 300);
+            
+            await sleep(2000);
+            addOutput('🤔 Did all goroutines finish? We don\'t know!', 'warning');
+            addOutput('📊 Total time: ~2200ms (might be too long or too short)', 'warning');
+        }
+
+        async function simulateWithWaitGroup() {
+            addOutput('🚀 Launching goroutines with WaitGroup...', 'info');
+            addOutput('wg.Add(3) - Setting counter to 3', 'info');
+            metrics.goroutines = 4;
+            updateMetrics();
+            
+            // Start goroutines
+            const goroutines = [
+                { name: 'api.users.com', delay: 1000 },
+                { name: 'api.orders.com', delay: 1200 },
+                { name: 'api.payments.com', delay: 800 }
+            ];
+            
+            addOutput('go fetchData("api.users.com", &wg)', 'info');
+            addOutput('go fetchData("api.orders.com", &wg)', 'info');
+            addOutput('go fetchData("api.payments.com", &wg)', 'info');
+            
+            await sleep(200);
+            addOutput('⏳ wg.Wait() - Waiting for all goroutines...', 'info');
+            
+            // Simulate concurrent execution
+            const promises = goroutines.map(async (g, index) => {
+                await sleep(g.delay);
+                addOutput(`✅ Completed ${g.name}`, 'success');
+                addOutput(`wg.Done() called for ${g.name}`, 'info');
+                metrics.completed++;
+                updateMetrics();
+            });
+            
+            await Promise.all(promises);
+            
+            addOutput('🎉 wg.Wait() completed - all goroutines finished!', 'success');
+            addOutput('📊 Total time: ~1200ms (exactly as long as needed)', 'success');
+        }
+
+        async function simulateWithErrorHandling() {
+            addOutput('🚀 Launching goroutines with error handling...', 'info');
+            addOutput('resultChan := make(chan Result, 3)', 'info');
+            metrics.goroutines = 5; // Main + 3 workers + 1 closer
+            updateMetrics();
+            
+            const apis = [
+                { name: 'api.users.com', success: true, delay: 1000 },
+                { name: 'api.orders.com', success: false, delay: 800 },  // This one fails
+                { name: 'api.payments.com', success: true, delay: 1200 }
+            ];
+            
+            await sleep(300);
+            
+            // Process each API
+            const promises = apis.map(async (api) => {
+                addOutput(`Fetching ${api.name}...`, 'info');
+                await sleep(api.delay);
+                
+                if (api.success) {
+                    addOutput(`✅ Completed ${api.name}`, 'success');
+                    addOutput(`📦 Got: Data from ${api.name}`, 'success');
+                    metrics.completed++;
+                } else {
+                    addOutput(`❌ Error from ${api.name}: API failed`, 'error');
+                }
+                updateMetrics();
+            });
+            
+            await Promise.all(promises);
+            
+            addOutput('📊 Processed 3 API calls', 'info');
+            addOutput('✅ Success: 2, Failed: 1', 'success');
+            addOutput('🛡️ Errors handled gracefully', 'success');
+        }
+
+        async function simulateProductionReady() {
+            addOutput('🚀 Production-ready concurrent execution...', 'info');
+            addOutput('ctx, cancel := context.WithTimeout(3*time.Second)', 'info');
+            metrics.goroutines = 5;
+            updateMetrics();
+            
+            const apis = [
+                { name: 'api.users.com', success: true, delay: 1000 },
+                { name: 'api.orders.com', success: Math.random() > 0.3, delay: 800 },
+                { name: 'api.payments.com', success: true, delay: 1200 }
+            ];
+            
+            await sleep(300);
+            
+            let successful = 0, failed = 0;
+            
+            const promises = apis.map(async (api) => {
+                addOutput(`Fetching ${api.name}...`, 'info');
+                await sleep(api.delay);
+                
+                if (api.success) {
+                    addOutput(`✅ Completed ${api.name}`, 'success');
+                    addOutput(`📦 Got: Data from ${api.name}`, 'success');
+                    successful++;
+                    metrics.completed++;
+                } else {
+                    addOutput(`❌ Error from ${api.name}: API failed`, 'error');
+                    failed++;
+                }
+                updateMetrics();
+            });
+            
+            await Promise.all(promises);
+            
+            addOutput(`✅ Success: ${successful}, Failed: ${failed}`, 'success');
+            addOutput('⏰ Context cleanup completed', 'info');
+            addOutput('🚀 Production ready with timeouts & cancellation!', 'success');
+        }
+
+        // Event handlers
+        elements.runBtn.addEventListener('click', async () => {
+            await incrementStats();
+            runStep();
+        });
+        
+        elements.resetBtn.addEventListener('click', () => {
+            // Reset to step 1
+            currentStep = 0;
+            updateStep();
+            
+            // Clear output and explanation
+            elements.executionOutput.innerHTML = '<div class="output-line"><span class="output-info">Click "Run" to execute this step</span></div>';
+            elements.explanationContent.innerHTML = '<p>Run this step to see execution flow and code analysis.</p>';
+            
+            // Reset metrics
+            metrics = { time: 0, goroutines: 0, completed: 0 };
+            updateMetrics();
+        });
+        
+        elements.prevBtn.addEventListener('click', () => {
+            if (currentStep > 0) {
+                currentStep--;
+                updateStep();
+            }
+        });
+        
+        elements.nextBtn.addEventListener('click', () => {
+            if (currentStep < steps.length - 1) {
+                currentStep++;
+                updateStep();
+            }
+        });
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing...');
+            fetchStats().then(() => {
+                updateStep();
+                
+                setInterval(async () => {
+                    if (!isRunning) {
+                        await fetchStats();
+                    }
+                }, 30000);
+            });
+        });
+    </script>
+</body>
+</html>
