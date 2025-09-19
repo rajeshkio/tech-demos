@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Linux Boot Process Simulator</title>
+    <meta name="description" content="Interactive simulation of the Linux boot process from POST to desktop login.">
+    <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #2d3748;
+            --success-color: #38a169;
+            --error-color: #c53030;
+            --warning-color: #d69e2e;
+            --bg-color: #f8fafc;
+            --panel-bg: white;
+            --terminal-bg: #1a202c;
+            --text-dark: #2d3748;
+            --text-light: #e2e8f0;
+            --text-muted: #718096;
+            --border-color: #e2e8f0;
+            --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-sans);
+            background: linear-gradient(135deg, var(--primary-color) 0%, #764ba2 100%);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: auto;
+            background: var(--bg-color);
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, var(--secondary-color) 0%, #4a5568 100%);
+            color: white;
+            padding: 2.5rem;
+            text-align: center;
+        }
+        
+        .page-header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .page-header p { font-size: 1.1rem; opacity: 0.9; }
+
+        .controls-bar {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--panel-bg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .scenario-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .scenario-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .scenario-selector label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        .scenario-selector select {
+            padding: 8px 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: white;
+            min-width: 200px;
+        }
+
+        .scenario-info {
+            padding: 12px 16px;
+            background: #f0f4f8;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            max-width: 300px;
+        }
+
+        .btn { 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 6px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            transition: all 0.2s; 
+            font-size: 1rem;
+        }
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-success { background: var(--success-color); color: white; }
+        .btn-warning { background: var(--warning-color); color: white; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; }
+
+        .performance-bar {
+            padding: 1rem 1.5rem;
+            background: linear-gradient(135deg, #e6fffa 0%, #f0fff4 100%);
+            border-bottom: 1px solid var(--border-color);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 1rem;
+            text-align: center;
+        }
+
+        .metric {
+            padding: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+
+        .metric-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .metric.highlight .metric-value {
+            color: var(--success-color);
+        }
+
+        .main-content { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            min-height: 600px;
+        }
+
+        .diagram-panel { 
+            padding: 1.5rem; 
+            border-right: 1px solid var(--border-color); 
+            position: relative; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        .boot-stages {
+            flex: 1;
+            position: relative;
+            padding: 2rem 0;
+        }
+
+        .stage-item { 
+            position: relative;
+            margin: 1rem 0;
+            padding: 1rem; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            border-left: 4px solid #e2e8f0;
+        }
+        
+        .stage-item h4 { 
+            font-size: 1rem; 
+            margin-bottom: 0.5rem;
+            color: var(--text-dark);
+        }
+
+        .stage-item .status {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            color: var(--text-muted);
+        }
+
+        .stage-item.waiting { 
+            background: #f7fafc; 
+            border-left-color: #cbd5e0;
+        }
+        
+        .stage-item.running { 
+            background: #fef5e7; 
+            border-left-color: var(--warning-color);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .stage-item.success { 
+            background: #f0fff4; 
+            border-left-color: var(--success-color);
+        }
+        
+        .stage-item.error { 
+            background: #fed7d7; 
+            border-left-color: var(--error-color);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+
+        .progress-container {
+            position: absolute;
+            bottom: 10%;
+            left: 5%;
+            right: 5%;
+            background: #f7fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--success-color), var(--primary-color));
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .terminal-panel { 
+            background: var(--terminal-bg); 
+            padding: 1.5rem; 
+            color: var(--text-light); 
+            font-family: var(--font-mono); 
+            display: flex; 
+            flex-direction: column; 
+        }
+        
+        .terminal-header { 
+            margin-bottom: 1rem; 
+            padding-bottom: 0.75rem; 
+            border-bottom: 1px solid #4a5568; 
+            color: var(--text-muted); 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mode-indicator {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .mode-indicator.normal {
+            background: #f0fff4;
+            color: #38a169;
+        }
+
+        .mode-indicator.failure {
+            background: #fed7d7;
+            color: #c53030;
+        }
+        
+        .terminal-content { 
+            flex-grow: 1; 
+            overflow-y: auto; 
+            font-size: 0.85rem; 
+            line-height: 1.5; 
+            max-height: 450px;
+        }
+
+        .terminal-line { 
+            margin-bottom: 0.25rem; 
+            padding: 0.25rem 0;
+        }
+
+        .terminal-line .timestamp {
+            color: #4a5568;
+            margin-right: 0.5rem;
+        }
+
+        .terminal-line .prompt { color: var(--success-color); }
+        .terminal-line .command { color: #87CEFA; }
+        .terminal-line .output.success { color: var(--success-color); }
+        .terminal-line .output.error { color: var(--error-color); }
+        .terminal-line .output.info { color: #63b3ed; }
+        .terminal-line .output.warning { color: var(--warning-color); }
+
+        .troubleshooting-panel {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #2d3748;
+            border-radius: 6px;
+            border-left: 4px solid var(--error-color);
+            display: none;
+        }
+
+        .usage-stats {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 13px;
+            color: #4a5568;
+        }
+        
+        .usage-stats .highlight {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .footer {
+            padding: 20px 30px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+        
+        .footer-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #4a5568;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+        
+        .footer-link:hover {
+            background: #edf2f7;
+            color: #2d3748;
+            transform: translateY(-1px);
+        }
+        
+        .footer-link.linkedin:hover {
+            background: #0077b5;
+            color: white;
+        }
+        
+        .footer-link.back:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .footer-link.blog:hover {
+            background: #f56565;
+            color: white;
+        }
+        
+        .footer-credits {
+            font-size: 13px;
+            color: #718096;
+        }
+
+        .blink {
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        @media (max-width: 900px) {
+            .main-content { grid-template-columns: 1fr; }
+            .diagram-panel { border-right: none; border-bottom: 1px solid var(--border-color); }
+            .controls-bar { flex-direction: column; }
+            .footer {
+                flex-direction: column;
+                text-align: center;
+            }
+            .footer-links {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="page-header">
+            <h1>💻 Linux Boot Process Simulator</h1>
+            <p>Experience step-by-step Linux system startup from hardware POST to desktop login</p>
+        </header>
+
+        <section class="controls-bar">
+            <div class="scenario-controls">
+                <div class="scenario-selector">
+                    <label>Boot Scenario:</label>
+                    <select id="scenario-select">
+                        <option value="normal">Normal Healthy Boot</option>
+                        <option value="hardware">Hardware Failure</option>
+                        <option value="grub">GRUB Bootloader Issues</option>
+                        <option value="kernel">Kernel Panic</option>
+                        <option value="filesystem">Filesystem Corruption</option>
+                    </select>
+                </div>
+                <div class="scenario-info" id="scenario-info">
+                    Watch a typical Linux system start up step by step. Each stage builds on the previous one.
+                </div>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <button id="btn-power" class="btn btn-primary">🔌 Power On</button>
+                <button id="btn-reset" class="btn btn-warning">🔄 Reset</button>
+                <button id="btn-pause" class="btn btn-success">⏸️ Pause</button>
+            </div>
+        </section>
+
+        <section class="performance-bar">
+            <div class="metric" id="metric-stage">
+                <div class="metric-value">0/6</div>
+                <div class="metric-label">Boot Stage</div>
+            </div>
+            <div class="metric" id="metric-time">
+                <div class="metric-value">0s</div>
+                <div class="metric-label">Boot Time</div>
+            </div>
+            <div class="metric" id="metric-errors">
+                <div class="metric-value">0</div>
+                <div class="metric-label">Errors</div>
+            </div>
+            <div class="metric" id="metric-status">
+                <div class="metric-value">Ready</div>
+                <div class="metric-label">System Status</div>
+            </div>
+        </section>
+
+        <main class="main-content">
+            <section class="diagram-panel">
+                <div class="boot-stages" id="boot-stages">
+                    <div class="stage-item waiting" id="stage-post">
+                        <h4>🔍 POST (Power-On Self Test)</h4>
+                        <div class="status">Hardware initialization and testing</div>
+                    </div>
+                    <div class="stage-item waiting" id="stage-bootloader">
+                        <h4>🚀 Boot Device Search</h4>
+                        <div class="status">Finding bootable device</div>
+                    </div>
+                    <div class="stage-item waiting" id="stage-grub">
+                        <h4>⚙️ GRUB Bootloader</h4>
+                        <div class="status">Loading kernel and initrd</div>
+                    </div>
+                    <div class="stage-item waiting" id="stage-kernel">
+                        <h4>🧠 Kernel Loading</h4>
+                        <div class="status">Hardware detection and driver loading</div>
+                    </div>
+                    <div class="stage-item waiting" id="stage-initramfs">
+                        <h4>📁 InitramFS</h4>
+                        <div class="status">Mounting root filesystem</div>
+                    </div>
+                    <div class="stage-item waiting" id="stage-systemd">
+                        <h4>🎯 SystemD Init</h4>
+                        <div class="status">Starting system services</div>
+                    </div>
+                </div>
+                
+                <div class="progress-container">
+                    <h4>Boot Progress:</h4>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-bar"></div>
+                    </div>
+                </div>
+            </section>
+            
+            <section class="terminal-panel">
+                <header class="terminal-header">
+                    <span>System Console Output</span>
+                    <span class="mode-indicator normal" id="mode-indicator">Ready</span>
+                </header>
+                <div class="terminal-content" id="terminal-content">
+                    <div class="terminal-line">
+                        <span class="output info">💻 System Powered Off</span>
+                    </div>
+                    <div class="terminal-line">
+                        <span class="output info blink">Press Power On to start boot sequence</span>
+                    </div>
+                </div>
+                
+                <div class="troubleshooting-panel" id="troubleshooting-panel">
+                    <div style="color: var(--error-color); font-weight: bold; margin-bottom: 1rem;">🔧 Troubleshooting Guide</div>
+                    <div id="troubleshooting-content"></div>
+                </div>
+            </section>
+        </main>
+
+        <div class="usage-stats">
+            <span id="connectionStatus">🔄 Connecting to global stats...</span> •
+            <span class="highlight" id="totalBoots">0</span> total boot simulations 
+            • <span class="highlight" id="bootsToday">0</span> today 
+            • Last boot: <span class="highlight" id="lastBoot">Never</span>
+        </div>
+        
+        <div class="footer">
+            <div class="footer-links">
+                <a href="https://demos.learningdevops.com/" class="footer-link back">
+                    ← Back to Demos
+                </a>
+                <a href="https://www.linkedin.com/in/techwith-rajesh/" class="footer-link linkedin" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                    LinkedIn
+                </a>
+                <a href="https://medium.com/@rk90229" class="footer-link blog" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    Blog Article
+                </a>
+            </div>
+            <div class="footer-credits">
+                Built with Linux • SystemD • GRUB • Netlify Functions
+            </div>
+        </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- STATE MANAGEMENT ---
+        const appState = {
+            scenario: 'normal',
+            currentStage: 0,
+            isRunning: false,
+            isPaused: false,
+            bootStartTime: 0,
+            totalErrors: 0,
+            bootInterval: null
+        };
+
+        // Global stats tracking
+        let usageStats = {
+            totalBoots: 0,
+            bootsToday: 0,
+            lastBoot: null
+        };
+
+        // Auto-detect Netlify function endpoint
+        const isNetlify = window.location.hostname.includes('netlify.app');
+        const API_BASE = isNetlify 
+            ? `${window.location.origin}/.netlify/functions`
+            : 'https://aesthetic-croissant-a06c3f.netlify.app/.netlify/functions';
+
+        // Scenario configurations
+        const scenarios = {
+            normal: {
+                name: "Normal Boot",
+                description: "Watch a typical Linux system start up step by step. Each stage builds on the previous one.",
+                stages: [
+                    {
+                        name: "POST (Power-On Self Test)",
+                        id: "stage-post",
+                        duration: 2000,
+                        messages: [
+                            "BIOS Version 2.14.1234",
+                            "CPU: Intel Core i7-9700K @ 3.60GHz",
+                            "Memory Test: 16384 MB OK",
+                            "Keyboard: Detected",
+                            "Mouse: Detected", 
+                            "Hard Drive: SATA 1TB - OK",
+                            "USB Ports: 6 detected",
+                            "POST Complete - All systems operational"
+                        ],
+                        success: true
+                    },
+                    {
+                        name: "Boot Device Search",
+                        id: "stage-bootloader", 
+                        duration: 1500,
+                        messages: [
+                            "Searching for boot devices...",
+                            "USB Ports: No bootable device",
+                            "Network PXE: Disabled",
+                            "SATA Drive 1: Boot sector found",
+                            "Boot device selected: /dev/sda"
+                        ],
+                        success: true
+                    },
+                    {
+                        name: "GRUB Bootloader",
+                        id: "stage-grub",
+                        duration: 2000,
+                        messages: [
+                            "GRUB version 2.06",
+                            "Loading boot menu...",
+                            "Found kernel: /boot/vmlinuz-5.15.0-78-generic",
+                            "Found initrd: /boot/initrd.img-5.15.0-78-generic",
+                            "Loading selected boot entry...",
+                            "Kernel command line: ro quiet splash"
+                        ],
+                        success: true
+                    },
+                    {
+                        name: "Kernel Loading",
+                        id: "stage-kernel",
+                        duration: 3000,
+                        messages: [
+                            "Loading Linux 5.15.0-78-generic...",
+                            "Initializing hardware...",
+                            "CPU cores: 8 detected and activated",
+                            "Memory management: Enabled",
+                            "PCI bus scan: 24 devices found",
+                            "USB subsystem: Initialized",
+                            "Network interfaces: 2 found",
+                            "Graphics: Intel HD Graphics - OK",
+                            "Loading initial ramdisk..."
+                        ],
+                        success: true
+                    },
+                    {
+                        name: "InitramFS",
+                        id: "stage-initramfs",
+                        duration: 2500,
+                        messages: [
+                            "Unpacking initramfs...",
+                            "Loading essential drivers...",
+                            "SATA driver: Loaded",
+                            "Filesystem drivers: ext4, ntfs, vfat",
+                            "Scanning for root filesystem...",
+                            "Found root on /dev/sda1",
+                            "Filesystem check: Clean",
+                            "Mounting root filesystem..."
+                        ],
+                        success: true
+                    },
+                    {
+                        name: "SystemD Init",
+                        id: "stage-systemd",
+                        duration: 4000,
+                        messages: [
+                            "systemd 249.11 running in system mode",
+                            "Starting essential services...",
+                            "✓ Started Load Kernel Modules",
+                            "✓ Started Create Static Device Nodes", 
+                            "✓ Started Journal Service",
+                            "✓ Started udev Hardware Manager",
+                            "✓ Started Network Manager",
+                            "✓ Started Display Manager",
+                            "✓ Reached target Graphical Interface",
+                            "Boot completed successfully!"
+                        ],
+                        success: true
+                    }
+                ]
+            },            hardware: {
+                name: "Hardware Failure",
+                description: "Simulate what happens when hardware components fail during startup.",
+                stages: [
+                    {
+                        name: "POST (Power-On Self Test)",
+                        id: "stage-post",
+                        duration: 3000,
+                        messages: [
+                            "BIOS Version 2.14.1234",
+                            "CPU: Intel Core i7-9700K @ 3.60GHz",
+                            "Memory Test: 16384 MB",
+                            "Testing memory bank 1... OK",
+                            "Testing memory bank 2... OK", 
+                            "Testing memory bank 3... ERROR",
+                            "MEMORY FAILURE DETECTED",
+                            "System halted - Hardware malfunction"
+                        ],
+                        success: false,
+                        troubleshooting: [
+                            "💡 What went wrong: Bad RAM stick detected during POST",
+                            "🔧 Real-world fix:",
+                            "1. Power off completely and unplug",
+                            "2. Open case and reseat all RAM sticks", 
+                            "3. Test each RAM stick individually",
+                            "4. Remove the faulty stick",
+                            "5. Boot with remaining good RAM",
+                            "",
+                            "⚠️ Why this happens: RAM can fail due to power surges, age, or manufacturing defects"
+                        ]
+                    }
+                ]
+            },
+            grub: {
+                name: "GRUB Issues",
+                description: "Experience common GRUB failures and learn how to recover.",
+                stages: [
+                    {
+                        name: "POST (Power-On Self Test)",
+                        id: "stage-post",
+                        duration: 1500,
+                        messages: [
+                            "BIOS Version 2.14.1234",
+                            "POST Complete - All systems operational"
+                        ],
+                        success: true
+                    },
+                    {
+                        name: "Boot Device Search",
+                        id: "stage-bootloader",
+                        duration: 1000,
+                        messages: [
+                            "Boot device selected: /dev/sda"
+                        ],
+                        success: true
+                    },
+                    {
+                        name: "GRUB Bootloader",
+                        id: "stage-grub", 
+                        duration: 2500,
+                        messages: [
+                            "GRUB version 2.06",
+                            "error: file '/boot/grub/i386-pc/normal.mod' not found",
+                            "Entering rescue mode...",
+                            "",
+                            "grub rescue> _"
+                        ],
+                        success: false,
+                        troubleshooting: [
+                            "💡 What went wrong: GRUB can't find its core files",
+                            "🔧 Recovery steps from grub rescue prompt:",
+                            "```",
+                            "grub rescue> ls",
+                            "grub rescue> ls (hd0,msdos1)/",
+                            "grub rescue> set root=(hd0,msdos1)", 
+                            "grub rescue> insmod normal",
+                            "grub rescue> normal",
+                            "```",
+                            "",
+                            "🛠️ Permanent fix (boot from live USB):",
+                            "```bash",
+                            "sudo mount /dev/sda1 /mnt",
+                            "sudo mount --bind /dev /mnt/dev",
+                            "sudo mount --bind /proc /mnt/proc", 
+                            "sudo mount --bind /sys /mnt/sys",
+                            "sudo chroot /mnt",
+                            "grub-install /dev/sda",
+                            "update-grub",
+                            "```"
+                        ]
+                    }
+                ]
+            },            kernel: {
+                name: "Kernel Panic",
+                description: "See what happens when the Linux kernel encounters fatal errors.",
+                stages: [
+                    {
+                        name: "POST (Power-On Self Test)",
+                        id: "stage-post",
+                        duration: 1000,
+                        messages: ["POST Complete - All systems operational"],
+                        success: true
+                    },
+                    {
+                        name: "GRUB Bootloader",
+                        id: "stage-grub", 
+                        duration: 1500,
+                        messages: [
+                            "GRUB version 2.06",
+                            "Loading kernel and initrd..."
+                        ],
+                        success: true
+                    },
+                    {
+                        name: "Kernel Loading",
+                        id: "stage-kernel",
+                        duration: 2000,
+                        messages: [
+                            "Loading Linux 5.15.0-78-generic...",
+                            "Initializing hardware...",
+                            "Loading graphics driver...",
+                            "BUG: unable to handle kernel paging request at 0xffffffffa0123456",
+                            "IP: nvidia_drv_init+0x45/0x1000 [nvidia]",
+                            "Oops: 0002 [#1] SMP PTI",
+                            "Call Trace:",
+                            " ? nvidia_init_module+0x34/0x1000 [nvidia]", 
+                            " ? do_one_initcall+0x46/0x1d4",
+                            " ? do_init_module+0x5c/0x245",
+                            "",
+                            "Kernel panic - not syncing: Fatal exception",
+                            "---[ end Kernel panic - not syncing: Fatal exception ]---"
+                        ],
+                        success: false,
+                        troubleshooting: [
+                            "💡 What went wrong: Graphics driver caused kernel panic",
+                            "🔧 Emergency boot options:",
+                            "1. Reboot and edit GRUB entry (press 'e')",
+                            "2. Add 'nomodeset' to kernel parameters",
+                            "3. This disables graphics drivers temporarily",
+                            "",
+                            "🛠️ Permanent fix:", 
+                            "```bash",
+                            "# Boot in recovery mode, then:",
+                            "sudo apt remove nvidia-driver-470",
+                            "sudo apt install nvidia-driver-525",
+                            "sudo reboot",
+                            "```",
+                            "",
+                            "⚠️ Prevention: Always test new drivers in virtual console first"
+                        ]
+                    }
+                ]
+            },            filesystem: {
+                name: "Filesystem Problems",
+                description: "Debug issues with corrupted or missing filesystems.",
+                stages: [
+                    {
+                        name: "POST through GRUB",
+                        id: "stage-post",
+                        duration: 1000, 
+                        messages: ["Hardware and bootloader OK..."],
+                        success: true
+                    },
+                    {
+                        name: "Kernel and InitramFS",
+                        id: "stage-initramfs",
+                        duration: 2000,
+                        messages: [
+                            "Loading Linux kernel...",
+                            "Unpacking initramfs...",
+                            "Scanning for root filesystem...",
+                            "Found root on /dev/sda1",
+                            "Filesystem check starting...",
+                            "",
+                            "fsck.ext4: Superblock has an invalid journal (inode 8).",
+                            "fsck.ext4: *** FILE SYSTEM WAS MODIFIED ***", 
+                            "fsck.ext4: The superblock could not be read or does not describe a valid ext4 filesystem.",
+                            "",
+                            "VFS: Cannot open root device sda1 or unknown-block(8,1)",
+                            "Please append a correct \"root=\" boot parameter", 
+                            "Kernel panic - not syncing: VFS: Unable to mount root fs",
+                            "",
+                            "Dropping to emergency shell..."
+                        ],
+                        success: false,
+                        troubleshooting: [
+                            "💡 What went wrong: Root filesystem is corrupted",
+                            "🔧 Emergency shell recovery:",
+                            "```bash",
+                            "# You're now at (initramfs) prompt",
+                            "fsck -y /dev/sda1",
+                            "# If that fails:",
+                            "fsck.ext4 -b 32768 /dev/sda1",
+                            "exit  # Try to continue boot",
+                            "```",
+                            "",
+                            "🛠️ Live USB recovery:",
+                            "```bash",
+                            "sudo fsck -f -y /dev/sda1",
+                            "# Check filesystem type:",
+                            "sudo blkid /dev/sda1", 
+                            "# If beyond repair:",
+                            "sudo mkfs.ext4 /dev/sda1  # (loses data)",
+                            "```",
+                            "",
+                            "💾 Data recovery: Use 'testdisk' or 'photorec' before reformating"
+                        ]
+                    }
+                ]
+            }
+        };
+
+        // DOM Elements
+        const elements = {
+            scenarioSelect: document.getElementById('scenario-select'),
+            scenarioInfo: document.getElementById('scenario-info'),
+            btnPower: document.getElementById('btn-power'),
+            btnReset: document.getElementById('btn-reset'),
+            btnPause: document.getElementById('btn-pause'),
+            terminalContent: document.getElementById('terminal-content'),
+            modeIndicator: document.getElementById('mode-indicator'),
+            progressBar: document.getElementById('progress-bar'),
+            troubleshootingPanel: document.getElementById('troubleshooting-panel'),
+            troubleshootingContent: document.getElementById('troubleshooting-content'),
+            metrics: {
+                stage: document.getElementById('metric-stage'),
+                time: document.getElementById('metric-time'),
+                errors: document.getElementById('metric-errors'),
+                status: document.getElementById('metric-status')
+            },
+            usage: {
+                connectionStatus: document.getElementById('connectionStatus'),
+                totalBoots: document.getElementById('totalBoots'),
+                bootsToday: document.getElementById('bootsToday'),
+                lastBoot: document.getElementById('lastBoot'),
+            }
+        };
+        // --- STATS FUNCTIONS ---
+        async function fetchStats() {
+            try {
+                const response = await fetch(`${API_BASE}/boot-process-stats`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                usageStats = {
+                    totalBoots: data.totalBoots || 0,
+                    bootsToday: data.bootsToday || 0,
+                    lastBoot: null
+                };
+                
+                if (data.lastBoot) {
+                    if (data.lastBoot._seconds) {
+                        usageStats.lastBoot = new Date(data.lastBoot._seconds * 1000);
+                    } else if (data.lastBoot.seconds) {
+                        usageStats.lastBoot = new Date(data.lastBoot.seconds * 1000);
+                    }
+                }
+                
+                updateUsageDisplay();
+                return true;
+            } catch (error) {
+                loadLocalStats();
+                return false;
+            }
+        }
+        
+        async function incrementStats() {
+            try {
+                const response = await fetch(`${API_BASE}/boot-process-stats`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const data = await response.json();
+                
+                usageStats = {
+                    totalBoots: data.totalBoots || 0,
+                    bootsToday: data.bootsToday || 0,
+                    lastBoot: null
+                };
+                
+                if (data.lastBoot) {
+                    if (data.lastBoot._seconds) {
+                        usageStats.lastBoot = new Date(data.lastBoot._seconds * 1000);
+                    } else if (data.lastBoot.seconds) {
+                        usageStats.lastBoot = new Date(data.lastBoot.seconds * 1000);
+                    }
+                }
+                
+                updateUsageDisplay();
+                return true;
+            } catch (error) {
+                incrementLocalStats();
+                return false;
+            }
+        }
+        
+        function loadLocalStats() {
+            const stored = localStorage.getItem('bootProcessUsageStats');
+            if (stored) {
+                usageStats = JSON.parse(stored);
+                if (usageStats.lastBoot) {
+                    usageStats.lastBoot = new Date(usageStats.lastBoot);
+                }
+            }
+            updateUsageDisplay();
+        }
+        
+        function incrementLocalStats() {
+            usageStats.totalBoots++;
+            usageStats.bootsToday++;
+            usageStats.lastBoot = new Date();
+            localStorage.setItem('bootProcessUsageStats', JSON.stringify(usageStats));
+            updateUsageDisplay();
+        }        
+        function updateUsageDisplay() {
+            elements.usage.totalBoots.textContent = usageStats.totalBoots.toLocaleString();
+            elements.usage.bootsToday.textContent = usageStats.bootsToday;
+            
+            if (API_BASE.includes('netlify')) {
+                elements.usage.connectionStatus.innerHTML = '🔒 <strong>Secure Global Stats</strong>';
+                elements.usage.connectionStatus.style.color = '#48bb78';
+            } else {
+                elements.usage.connectionStatus.innerHTML = '📱 <strong>Local Mode</strong>';
+                elements.usage.connectionStatus.style.color = '#f6e05e';
+            }
+            
+            if (usageStats.lastBoot && usageStats.lastBoot instanceof Date && !isNaN(usageStats.lastBoot)) {
+                const lastTime = usageStats.lastBoot;
+                const now = new Date();
+                const diffMinutes = Math.floor((now - lastTime) / 60000);
+                
+                let timeText;
+                if (diffMinutes < 1) {
+                    timeText = 'Just now';
+                } else if (diffMinutes < 60) {
+                    timeText = `${diffMinutes}m ago`;
+                } else if (diffMinutes < 1440) {
+                    timeText = `${Math.floor(diffMinutes / 60)}h ago`;
+                } else {
+                    timeText = lastTime.toLocaleDateString();
+                }
+                
+                elements.usage.lastBoot.textContent = timeText;
+            } else {
+                elements.usage.lastBoot.textContent = 'Never';
+            }
+        }
+
+        // --- UI FUNCTIONS ---
+        function updateScenarioInfo() {
+            const scenario = scenarios[appState.scenario];
+            elements.scenarioInfo.textContent = scenario.description;
+        }
+
+        function updateMetrics() {
+            const scenario = scenarios[appState.scenario];
+            const totalStages = scenario.stages.length;
+            
+            elements.metrics.stage.querySelector('.metric-value').textContent = `${appState.currentStage}/${totalStages}`;
+            
+            const elapsedTime = appState.bootStartTime ? Math.floor((Date.now() - appState.bootStartTime) / 1000) : 0;
+            elements.metrics.time.querySelector('.metric-value').textContent = elapsedTime + 's';
+            
+            elements.metrics.errors.querySelector('.metric-value').textContent = appState.totalErrors;
+            
+            let status = 'Ready';
+            if (appState.isRunning) {
+                status = appState.isPaused ? 'Paused' : 'Booting';
+            } else if (appState.totalErrors > 0) {
+                status = 'Failed';
+            } else if (appState.currentStage === totalStages) {
+                status = 'Complete';
+            }
+            elements.metrics.status.querySelector('.metric-value').textContent = status;
+        }
+
+        function addTerminalLine(text, type = 'info', includeTimestamp = true) {
+            const timestamp = includeTimestamp ? new Date().toLocaleTimeString() : '';
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.innerHTML = `
+                ${timestamp ? `<span class="timestamp">[${timestamp}]</span>` : ''}
+                <span class="output ${type}">${text}</span>
+            `;
+            elements.terminalContent.appendChild(line);
+            elements.terminalContent.scrollTop = elements.terminalContent.scrollHeight;
+        }
+
+        function updateStageVisual(stageId, status) {
+            const stageElement = document.getElementById(stageId);
+            if (stageElement) {
+                stageElement.className = `stage-item ${status}`;
+            }
+        }
+        // --- BOOT SIMULATION FUNCTIONS ---
+        const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+        async function startBoot() {
+            if (appState.isRunning) return;
+            
+            resetSystem();
+            appState.isRunning = true;
+            appState.bootStartTime = Date.now();
+            elements.btnPower.disabled = true;
+            elements.btnPause.disabled = false;
+            
+            elements.modeIndicator.textContent = scenarios[appState.scenario].name;
+            elements.modeIndicator.className = 'mode-indicator normal';
+            
+            elements.terminalContent.innerHTML = '';
+            addTerminalLine(`🚀 Starting ${scenarios[appState.scenario].name} simulation...`, 'info');
+            
+            await incrementStats();
+            await runBootSequence();
+        }
+
+        async function runBootSequence() {
+            const scenario = scenarios[appState.scenario];
+            
+            for (let i = 0; i < scenario.stages.length; i++) {
+                if (!appState.isRunning) break;
+                
+                const stage = scenario.stages[i];
+                appState.currentStage = i + 1;
+                
+                updateStageVisual(stage.id, 'running');
+                updateMetrics();
+                
+                addTerminalLine(`=== ${stage.name} ===`, 'info');
+                
+                // Display messages progressively
+                for (const message of stage.messages) {
+                    if (!appState.isRunning) break;
+                    
+                    while (appState.isPaused) {
+                        await sleep(100);
+                    }
+                    
+                    let messageType = 'info';
+                    if (message.includes('ERROR') || message.includes('panic') || message.includes('BUG:') || message.includes('FAILURE')) {
+                        messageType = 'error';
+                    } else if (message.includes('OK') || message.includes('✓') || message.includes('Complete')) {
+                        messageType = 'success';
+                    } else if (message.includes('Warning') || message.includes('⚠')) {
+                        messageType = 'warning';
+                    }
+                    
+                    addTerminalLine(message, messageType, false);
+                    await sleep(stage.duration / stage.messages.length);
+                }
+                
+                if (stage.success) {
+                    updateStageVisual(stage.id, 'success');
+                    const progress = ((i + 1) / scenario.stages.length) * 100;
+                    elements.progressBar.style.width = progress + '%';
+                } else {
+                    updateStageVisual(stage.id, 'error');
+                    elements.modeIndicator.className = 'mode-indicator failure';
+                    appState.totalErrors++;
+                    updateMetrics();
+                    
+                    if (stage.troubleshooting) {
+                        showTroubleshooting(stage.troubleshooting);
+                    }
+                    
+                    appState.isRunning = false;
+                    elements.btnPower.disabled = false;
+                    elements.btnPause.disabled = true;
+                    return;
+                }
+                
+                updateMetrics();
+            }
+            
+            // Boot completed successfully
+            if (appState.isRunning) {
+                addTerminalLine('🎉 Boot sequence completed successfully!', 'success');
+                elements.progressBar.style.width = '100%';
+                appState.isRunning = false;
+                elements.btnPower.disabled = false;
+                elements.btnPause.disabled = true;
+                updateMetrics();
+            }
+        }
+        function showTroubleshooting(troubleshootingSteps) {
+            elements.troubleshootingContent.innerHTML = troubleshootingSteps.join('<br>');
+            elements.troubleshootingPanel.style.display = 'block';
+        }
+
+        function resetSystem() {
+            clearTimeout(appState.bootInterval);
+            appState.currentStage = 0;
+            appState.isRunning = false;
+            appState.isPaused = false;
+            appState.bootStartTime = 0;
+            appState.totalErrors = 0;
+            
+            elements.btnPower.disabled = false;
+            elements.btnPause.disabled = true;
+            elements.btnPause.textContent = '⏸️ Pause';
+            elements.progressBar.style.width = '0%';
+            elements.troubleshootingPanel.style.display = 'none';
+            
+            // Reset all stage visuals
+            const stageElements = document.querySelectorAll('.stage-item');
+            stageElements.forEach(el => {
+                el.className = 'stage-item waiting';
+            });
+            
+            elements.modeIndicator.textContent = 'Ready';
+            elements.modeIndicator.className = 'mode-indicator normal';
+            
+            elements.terminalContent.innerHTML = `
+                <div class="terminal-line">
+                    <span class="output info">💻 System Powered Off</span>
+                </div>
+                <div class="terminal-line">
+                    <span class="output info blink">Press Power On to start boot sequence</span>
+                </div>
+            `;
+            
+            updateMetrics();
+        }
+
+        function togglePause() {
+            if (!appState.isRunning) return;
+            
+            appState.isPaused = !appState.isPaused;
+            
+            if (appState.isPaused) {
+                elements.btnPause.textContent = '▶️ Resume';
+                addTerminalLine('⏸️ Boot sequence paused', 'warning');
+            } else {
+                elements.btnPause.textContent = '⏸️ Pause';
+                addTerminalLine('▶️ Boot sequence resumed', 'info');
+            }
+            
+            updateMetrics();
+        }
+
+        // --- EVENT HANDLERS ---
+        elements.scenarioSelect.addEventListener('change', (e) => {
+            appState.scenario = e.target.value;
+            updateScenarioInfo();
+            resetSystem();
+        });
+
+        elements.btnPower.addEventListener('click', startBoot);
+        elements.btnReset.addEventListener('click', resetSystem);
+        elements.btnPause.addEventListener('click', togglePause);
+
+        // --- INITIALIZATION ---
+        fetchStats().then(() => {
+            updateScenarioInfo();
+            updateMetrics();
+            
+            setInterval(async () => {
+                if (!appState.isRunning) {
+                    await fetchStats();
+                }
+            }, 30000);
+        });
+    });
+    </script>
+</body>
+</html>
