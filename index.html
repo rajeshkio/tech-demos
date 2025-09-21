@@ -184,6 +184,7 @@
             display: flex;
             gap: 15px;
             flex-wrap: wrap;
+            align-items: center;
         }
 
         .btn {
@@ -228,6 +229,35 @@
             background: var(--primary-color);
             color: var(--background-light);
         }
+
+        /* NEW: Visit counter styling */
+        .visit-counter {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 0.75rem;
+            color: var(--primary-color);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+            backdrop-filter: blur(10px);
+        }
+
+        .visit-counter.loading {
+            color: var(--text-muted);
+            background: rgba(113, 128, 150, 0.1);
+            border-color: rgba(113, 128, 150, 0.2);
+        }
+
+        .visit-counter .icon {
+            font-size: 0.7rem;
+        }
         
         .page-footer {
             text-align: center;
@@ -247,6 +277,11 @@
             .page-header h1 { font-size: 2.2rem; }
             .demo-header { flex-direction: column; text-align: center; align-items: center; }
             .demo-actions { justify-content: center; }
+            .visit-counter { 
+                position: static; 
+                margin-top: 15px; 
+                align-self: flex-start;
+            }
         }
     </style>
 </head>
@@ -270,8 +305,8 @@
                     <div class="stat-label">Interactive Demos</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-number">50%</div>
-                    <div class="stat-label">Performance Gains</div>
+                    <div class="stat-number" id="total-visits">0</div>
+                    <div class="stat-label">Total Visits</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-number">100%</div>
@@ -280,7 +315,11 @@
             </section>
             
             <section class="demo-grid" id="demo-grid">
-                <div class="demo-card">
+                <div class="demo-card" data-demo="linux-boot-process">
+                    <div class="visit-counter loading" id="counter-linux-boot-process">
+                        <span class="icon">👀</span>
+                        <span>...</span>
+                    </div>
                     <div class="demo-header">
                         <div class="demo-icon">💻</div>
                         <div class="demo-info">
@@ -306,7 +345,11 @@
                     </div>
                 </div>
 
-                <div class="demo-card">
+                <div class="demo-card" data-demo="coredns-autopath">
+                    <div class="visit-counter loading" id="counter-coredns-autopath">
+                        <span class="icon">👀</span>
+                        <span>...</span>
+                    </div>
                     <div class="demo-header">
                         <div class="demo-icon">🔍</div>
                         <div class="demo-info">
@@ -332,7 +375,11 @@
                     </div>
                 </div>
 
-                <div class="demo-card">
+                <div class="demo-card" data-demo="pki-infra">
+                    <div class="visit-counter loading" id="counter-pki-infra">
+                        <span class="icon">👀</span>
+                        <span>...</span>
+                    </div>
                     <div class="demo-header">
                         <div class="demo-icon">🔐</div>
                         <div class="demo-info">
@@ -358,7 +405,11 @@
                     </div>
                 </div>
                 
-                <div class="demo-card">
+                <div class="demo-card" data-demo="self-provisioning-proxmox">
+                    <div class="visit-counter loading" id="counter-self-provisioning-proxmox">
+                        <span class="icon">👀</span>
+                        <span>...</span>
+                    </div>
                     <div class="demo-header">
                         <div class="demo-icon">⚙️</div>
                         <div class="demo-info">
@@ -384,7 +435,11 @@
                     </div>
                 </div>
 
-                <div class="demo-card">
+                <div class="demo-card" data-demo="kubectl-portforward">
+                    <div class="visit-counter loading" id="counter-kubectl-portforward">
+                        <span class="icon">👀</span>
+                        <span>...</span>
+                    </div>
                     <div class="demo-header">
                         <div class="demo-icon">🌐</div>
                         <div class="demo-info">
@@ -410,7 +465,11 @@
                     </div>
                 </div>
                 
-                <div class="demo-card">
+                <div class="demo-card" data-demo="nat-masquerade">
+                    <div class="visit-counter loading" id="counter-nat-masquerade">
+                        <span class="icon">👀</span>
+                        <span>...</span>
+                    </div>
                     <div class="demo-header">
                         <div class="demo-icon">🔄</div>
                         <div class="demo-info">
@@ -436,7 +495,11 @@
                     </div>
                 </div>
 
-                <div class="demo-card">
+                <div class="demo-card" data-demo="go-concurrency">
+                    <div class="visit-counter loading" id="counter-go-concurrency">
+                        <span class="icon">👀</span>
+                        <span>...</span>
+                    </div>
                     <div class="demo-header">
                         <div class="demo-icon">🚀</div>
                         <div class="demo-info">
@@ -474,8 +537,14 @@
     </div>
     
     <script>
-        // --- Automatically count the number of demos ---
         document.addEventListener('DOMContentLoaded', () => {
+            // Auto-detect Netlify function endpoint
+            const isNetlify = window.location.hostname.includes('netlify.app');
+            const API_BASE = isNetlify 
+                ? `${window.location.origin}/.netlify/functions`
+                : 'https://aesthetic-croissant-a06c3f.netlify.app/.netlify/functions';
+
+            // --- Automatically count the number of demos ---
             const demoGrid = document.getElementById('demo-grid');
             const demoCountElement = document.getElementById('demo-count');
             
@@ -483,19 +552,108 @@
                 const numberOfDemos = demoGrid.getElementsByClassName('demo-card').length;
                 demoCountElement.textContent = numberOfDemos;
             }
-        });
 
-        // --- Share button functionality ---
-        async function copyDemoUrl(demoPath) {
-            const url = `${window.location.origin}/${demoPath}`;
-            try {
-                await navigator.clipboard.writeText(url);
-                alert(`Demo URL copied to clipboard:\n${url}`);
-            } catch (err) {
-                console.error('Failed to copy URL: ', err);
-                alert('Failed to copy URL. Please copy it manually.');
+            // Mapping of data-demo attributes to Firebase collection names
+            const demoStatsMapping = {
+                'linux-boot-process': 'boot-simulations',
+                'coredns-autopath': 'dns-resolutions', 
+                'pki-infra': 'pki-lab-sessions',
+                'self-provisioning-proxmox': 'deployment-sessions',
+                'kubectl-portforward': 'portforward-sessions',
+                'nat-masquerade': 'masquerade-simulations',
+                'go-concurrency': 'concurrency-runs'
+            };
+
+            // --- Fetch and display individual demo visit counts ---
+            async function fetchDemoStats() {
+                let totalVisits = 0;
+                
+                for (const [demoKey, collectionName] of Object.entries(demoStatsMapping)) {
+                    try {
+                        // Use the existing individual stats endpoints
+                        let endpoint = '';
+                        switch(collectionName) {
+                            case 'dns-resolutions':
+                                endpoint = 'coredns-autopath-stats';
+                                break;
+                            case 'boot-simulations':
+                                endpoint = 'boot-process-stats';
+                                break;
+                            case 'pki-lab-sessions':
+                                endpoint = 'pki-lab-stats';
+                                break;
+                            case 'portforward-sessions':
+                                endpoint = 'portforward-stats';
+                                break;
+                            case 'masquerade-simulations':
+                                endpoint = 'masquerade-nat-stats';
+                                break;
+                            case 'concurrency-runs':
+                                endpoint = 'go-concurrency-stats';
+                                break;
+                            case 'deployment-sessions':
+                                endpoint = 'deployment-stats';
+                                break;
+                        }
+                        
+                        if (endpoint) {
+                            const response = await fetch(`${API_BASE}/${endpoint}`);
+                            if (response.ok) {
+                                const data = await response.json();
+                                
+                                // Extract the total count based on the response structure
+                                let total = 0;
+                                if (data.totalResolutions) total = data.totalResolutions;
+                                else if (data.totalBoots) total = data.totalBoots;
+                                else if (data.totalSessions) total = data.totalSessions;
+                                else if (data.totalSimulations) total = data.totalSimulations;
+                                else if (data.totalRuns) total = data.totalRuns;
+                                
+                                // Update counter
+                                const counterElement = document.getElementById(`counter-${demoKey}`);
+                                if (counterElement && total > 0) {
+                                    counterElement.innerHTML = `
+                                        <span class="icon">👀</span>
+                                        <span>${total.toLocaleString()}</span>
+                                    `;
+                                    counterElement.classList.remove('loading');
+                                }
+                                
+                                totalVisits += total;
+                            }
+                        }
+                    } catch (error) {
+                        console.error(`Failed to fetch stats for ${demoKey}:`, error);
+                    }
+                }
+                
+                // Update total visits counter
+                const totalVisitsElement = document.getElementById('total-visits');
+                if (totalVisitsElement) {
+                    totalVisitsElement.textContent = totalVisits.toLocaleString();
+                }
+                
+                // Hide loading counters that couldn't be loaded
+                document.querySelectorAll('.visit-counter.loading').forEach(counter => {
+                    counter.style.display = 'none';
+                });
             }
-        }
+
+            // Load stats on page load
+            fetchDemoStats();
+
+            // --- Share button functionality ---
+            async function copyDemoUrl(demoPath) {
+                const url = `${window.location.origin}/${demoPath}`;
+                try {
+                    await navigator.clipboard.writeText(url);
+                    alert(`Demo URL copied to clipboard:\n${url}`);
+                } catch (err) {
+                    console.error('Failed to copy URL: ', err);
+                    alert('Failed to copy URL. Please copy it manually.');
+                }
+            }
+        });
     </script>
 </body>
 </html>
