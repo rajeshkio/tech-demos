@@ -66,8 +66,10 @@ exports.handler = async (event, context) => {
           });
         } else {
           const data = doc.data();
-          const today = new Date().toDateString();
-          const simulationsToday = data.lastDayReset === today ? data.simulationsToday + 1 : 1;
+          const now = new Date();
+          const today = now.toISOString().split('T')[0]; 
+          const lastReset = data.lastDayReset || '';
+          const simulationsToday = lastReset === today ? data.simulationsToday + 1 : 1;
           
           const updates = {
             totalSimulations: admin.firestore.FieldValue.increment(1),

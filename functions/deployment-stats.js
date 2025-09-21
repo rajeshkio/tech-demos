@@ -46,8 +46,10 @@ exports.handler = async (event, context) => {
           });
         } else {
           const data = doc.data();
-          const today = new Date().toDateString();
-          const deploymentsToday = data.lastDayReset === today ? data.deploymentsToday + 1 : 1;
+          const now = new Date();
+          const today = now.toISOString().split('T')[0]; 
+          const lastReset = data.lastDayReset || '';
+          const deploymentsToday = lastReset === today ? data.deploymentsToday + 1 : 1;
           
           transaction.update(statsRef, {
             totalDeployments: admin.firestore.FieldValue.increment(1),
