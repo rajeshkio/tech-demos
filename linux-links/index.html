@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Why Hard Links to Directories Are Forbidden - Interactive Demo</title>
+    <style>
+        :root {
+            --primary: #667eea;
+            --secondary: #2d3748;
+            --success: #38a169;
+            --error: #c53030;
+            --warning: #d69e2e;
+            --terminal-bg: #1a202c;
+            --terminal-text: #e2e8f0;
+            --mono: 'SF Mono', 'Menlo', 'Monaco', 'Consolas', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
+            padding: 1.5rem;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: auto;
+            background: #f8fafc;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--secondary) 0%, #4a5568 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .header p { font-size: 1.1rem; opacity: 0.9; }
+
+        .tabs {
+            display: flex;
+            background: white;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 1.25rem;
+            text-align: center;
+            cursor: pointer;
+            border: none;
+            background: white;
+            font-weight: 600;
+            transition: all 0.2s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab:hover { background: #f7fafc; }
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: #f7fafc;
+        }
+
+        .content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            height: calc(100vh - 250px);
+        }
+
+        .demo-panel {
+            padding: 2rem;
+            background: white;
+            border-right: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .explanation-panel {
+            padding: 2rem;
+            background: #f7fafc;
+            overflow-y: auto;
+        }
+
+        .terminal {
+            background: var(--terminal-bg);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: var(--mono);
+            font-size: 0.9rem;
+            color: var(--terminal-text);
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            min-height: 300px;
+        }
+
+        .terminal-line {
+            margin-bottom: 0.25rem;
+            line-height: 1.5;
+        }
+
+        .prompt { color: var(--success); }
+        .command { color: #87CEFA; }
+        .output { color: var(--terminal-text); }
+        .error-text { color: var(--error); }
+        .success-text { color: var(--success); }
+        .warning-text { color: var(--warning); }
+
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 16px;
+            background: var(--terminal-text);
+            animation: blink 1s infinite;
+            margin-left: 2px;
+        }
+
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .visualization {
+            flex: 1;
+            position: relative;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 1rem;
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-error { background: var(--error); color: white; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .btn:disabled { background: #bdc3c7; cursor: not-allowed; opacity: 0.6; }
+
+        .status {
+            text-align: center;
+            padding: 0.75rem;
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            margin-top: 1rem;
+            font-weight: 600;
+        }
+
+        .status.running { border-color: var(--warning); color: var(--warning); }
+        .status.error { border-color: var(--error); color: var(--error); }
+        .status.success { border-color: var(--success); color: var(--success); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: grid; }
+
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid #4299e1;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        .warning-box {
+            background: #fed7d7;
+            border-left: 4px solid var(--error);
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+        }
+
+        .code {
+            background: var(--terminal-bg);
+            color: var(--terminal-text);
+            padding: 1rem;
+            border-radius: 6px;
+            font-family: var(--mono);
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            line-height: 1.6;
+        }
+
+        h3 { margin: 1.5rem 0 1rem 0; color: var(--secondary); }
+        p { line-height: 1.6; color: #4a5568; margin-bottom: 1rem; }
+
+        @media (max-width: 900px) {
+            .content { grid-template-columns: 1fr; }
+            .demo-panel { border-right: none; border-bottom: 1px solid #e2e8f0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🔗 Why Directory Hard Links Are Forbidden</h1>
+            <p>Watch what happens when you try to create cycles in the filesystem</p>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab active" data-tab="loop">Infinite Loop Problem</button>
+            <button class="tab" data-tab="refcount">Reference Counting</button>
+            <button class="tab" data-tab="comparison">Symlink Comparison</button>
+        </nav>
+
+        <!-- Tab 1: Infinite Loop -->
+        <div class="content tab-content active" data-content="loop">
+            <section class="demo-panel">
+                <div class="terminal" id="loop-terminal"></div>
+                <div class="visualization">
+                    <canvas id="loop-canvas"></canvas>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-primary" id="loop-create">Create Directory Cycle</button>
+                    <button class="btn btn-success" id="loop-find">Run find Command</button>
+                    <button class="btn btn-error" id="loop-reset">Reset</button>
+                </div>
+                <div class="status" id="loop-status">Ready - Click "Create Directory Cycle"</div>
+            </section>
+
+            <section class="explanation-panel">
+                <h3>The Infinite Loop Problem</h3>
+                <p>Filesystems must be Directed Acyclic Graphs (DAG). If we allow hard links to directories, we can create cycles that break traversal tools.</p>
+                
+                <div class="info-box">
+                    <strong>💡 Interactive Demo</strong><br>
+                    Click "Create Directory Cycle" to set up the problematic structure, then "Run find Command" to watch it loop forever.
+                </div>
+
+                <h3>Technical Breakdown</h3>
+                
+                <h4>Directory Entry Structure</h4>
+                <p>Each directory entry contains a name and inode number. When you create a hard link to a directory, both entries point to the same inode.</p>
+                <div class="code">dir-a (inode 1000)
+  ├── dir-b (inode 2000)
+      └── link-to-a (inode 1000)  ← Same as dir-a!</div>
+                
+                <h4>How find Traversal Works</h4>
+                <p>The find command uses depth-first search with these assumptions:</p>
+                <ul style="margin-left: 1.5rem; line-height: 1.8; color: #4a5568;">
+                    <li>Start at root directory</li>
+                    <li>Read directory entries sequentially</li>
+                    <li>Recurse into subdirectories</li>
+                    <li>Never revisit the same directory</li>
+                </ul>
+                
+                <p>With directory hard links, assumption #4 breaks. The kernel follows link-to-a thinking it's entering a new directory, but it's actually re-entering dir-a.</p>
+
+                <h4>Why No Cycle Detection?</h4>
+                <p>For files, the kernel doesn't track visited inodes during traversal because:</p>
+                <ul style="margin-left: 1.5rem; line-height: 1.8; color: #4a5568;">
+                    <li>Would require O(n) memory for every directory scan</li>
+                    <li>Performance penalty on every filesystem operation</li>
+                    <li>Tree structure (no cycles) is a fundamental assumption</li>
+                </ul>
+
+                <h4>The . and .. Exception</h4>
+                <p>Every directory has link count ≥ 2 because of . (self) and .. (parent). These are hard links! But they're special-cased:</p>
+                <div class="code">// Kernel explicitly skips these during traversal
+
+if (strcmp(entry->d_name, ".") == 0 ||
+    strcmp(entry->d_name, "..") == 0)
+    continue;</div>
+
+                <p>User-created directory hard links can't be special-cased without knowing all possible names, making cycle detection impossible at the kernel level.</p>
+            </section>
+        </div>
+
+        <!-- Tab 2: Reference Counting -->
+        <div class="content tab-content" data-content="refcount">
+            <section class="demo-panel">
+                <div class="terminal" id="refcount-terminal"></div>
+                <div class="visualization">
+                    <canvas id="refcount-canvas"></canvas>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-primary" id="refcount-create">Create Circular Refs</button>
+                    <button class="btn btn-success" id="refcount-delete">Try rm -rf</button>
+                    <button class="btn btn-error" id="refcount-reset">Reset</button>
+                </div>
+                <div class="status" id="refcount-status">Ready - Click "Create Circular Refs"</div>
+            </section>
+
+            <section class="explanation-panel">
+                <h3>The Reference Counting Problem</h3>
+                <p>Linux uses link counts to know when to free inodes. When a file's link count reaches zero, the kernel frees the data. Directory hard links create circular references that break this mechanism.</p>
+
+                <div class="info-box">
+                    <strong>💡 Interactive Demo</strong><br>
+                    Watch link counts update in real-time as you create the structure, then see what happens when you try to delete it.
+                </div>
+
+                <h3>Technical Breakdown</h3>
+                
+                <h4>How Link Counting Works</h4>
+                <p>Every inode maintains a link count (i_nlink in ext4). The kernel updates this count on every hard link operation:</p>
+                <div class="code">// Creating a hard link
+
+link(source, target):
+    inode = lookup_inode(source)
+    inode->i_nlink++
+    add_directory_entry(target, inode)</div>
+
+                <h4>Deletion Process</h4>
+                <p>When you delete a file, the kernel only removes the directory entry:</p>
+                <div class="code">// Unlinking a file
+
+unlink(path):
+    inode = lookup_inode(path)
+    remove_directory_entry(path)
+    inode->i_nlink--
+    
+    if (inode->i_nlink == 0)
+        free_inode(inode)  // Only then!</div>
+
+                <h4>The Circular Reference Problem</h4>
+                <p>With directory hard links:</p>
+                <div class="code">dir-a (inode 1000, links: 3)
+  ├── self (.)
+  ├── parent reference (..)
+  └── dir-b
+      └── link-to-a → inode 1000
+
+rm -rf dir-a from parent:
+
+1. Remove parent's entry to dir-a
+2. links: 3 → 2 (. and link-to-a remain)
+3. links > 0, so DON'T free inode
+4. But dir-b is inside dir-a!
+5. Can't reach dir-a to remove link-to-a
+6. Orphaned: unreachable but not freed</div>
+
+                <h4>Why This is Fatal</h4>
+                <ul style="margin-left: 1.5rem; line-height: 1.8; color: #4a5568;">
+                    <li><strong>Filesystem leak</strong>: Inodes and data blocks permanently allocated</li>
+                    <li><strong>No recovery</strong>: Even fsck can't determine which directories are orphaned vs intentionally inaccessible</li>
+                    <li><strong>Cascading failure</strong>: As disk fills with orphaned directories, system becomes unstable</li>
+                </ul>
+
+                <h4>The . and .. Links</h4>
+                <p>Directories already have link count ≥ 2:</p>
+                <div class="code">mkdir dir-a:
+  links = 2  (. from dir-a, entry from parent)
+
+mkdir dir-a/dir-b:
+  dir-a links = 3  (adds .. from dir-b)
+  dir-b links = 2  (. and parent entry)</div>
+
+                <p>But . and .. are kernel-managed. User-created hard links add untracked circular references the kernel can't handle.</p>
+            </section>
+        </div>
+
+        <!-- Tab 3: Comparison -->
+        <div class="content tab-content" data-content="comparison">
+            <section class="demo-panel">
+                <div class="terminal" id="comparison-terminal"></div>
+                <div class="visualization">
+                    <canvas id="comparison-canvas"></canvas>
+                </div>
+                <div class="controls">
+                    <button class="btn btn-primary" id="comparison-create">Create Symlink Loop</button>
+                    <button class="btn btn-success" id="comparison-find">Run find -L</button>
+                    <button class="btn btn-success" id="comparison-rm">Run rm</button>
+                    <button class="btn btn-error" id="comparison-reset">Reset</button>
+                </div>
+                <div class="status" id="comparison-status">Ready - See how symlinks handle loops</div>
+            </section>
+
+            <section class="explanation-panel">
+                <h3>Why Symlinks Work</h3>
+                <p>Symbolic links can point to directories safely because they work fundamentally differently than hard links.</p>
+
+                <div class="info-box">
+                    <strong>💡 Interactive Demo</strong><br>
+                    Create the same loop structure with symlinks, then watch how <code>find -L</code> handles it. Note: The kernel doesn't "detect" the loop - it simply enforces a maximum depth of 40 symlink resolutions, which prevents infinite traversal.
+                </div>
+
+                <h3>Technical Differences</h3>
+
+                <h4>Symlinks are Separate Files</h4>
+                <p>A symlink has its own inode and stores the target path as data:</p>
+                <div class="code">// Hard link (forbidden for directories)
+link("dir-a", "dir-b/link") → EPERM
+  Both entries point to same inode
+
+// Symbolic link (allowed)
+symlink("../../dir-a", "dir-b/link")
+  link has its own inode
+  inode->data = "../../dir-a"
+  dir-a's link count unchanged</div>
+
+                <h4>Path Resolution with Symlinks</h4>
+                <p>The kernel tracks symlink resolution depth:</p>
+                <div class="code">// In include/linux/namei.h (Linux kernel)
+// Source: https://github.com/torvalds/linux/blob/master/include/linux/namei.h#L14
+#define MAXSYMLINKS 40
+
+resolve_symlink(path):
+    depth = 0
+    
+    while is_symlink(path):
+        if depth++ > MAXSYMLINKS:
+            return -ELOOP  // Loop detected!
+        
+        path = readlink(path)
+    
+    return path</div>
+
+                <h3>Why find Works with Symlinks</h3>
+                
+                <h4>Hard Links: Infinite Loop</h4>
+                <div class="code">// With hard link to directory (forbidden)
+find dir-a:
+    visit(dir-a)         // Enter dir-a
+    visit(dir-b)         // Enter dir-b
+    visit(link-to-a)     // Enter link-to-a
+                         // Same inode as dir-a!
+    visit(dir-a) AGAIN   // Infinite loop starts
+    visit(dir-b) AGAIN
+    visit(link-to-a) AGAIN
+    ... forever ...
+    
+❌ HANGS FOREVER - No depth tracking</div>
+
+                <h4>Symlinks: Graceful Detection</h4>
+                <div class="code">// With symlink (allowed)
+find -L dir-a:
+    visit(dir-a)         depth=0
+    visit(dir-b)         depth=0
+    visit(link-to-a)     depth=1 (symlink)
+    visit(dir-a)         depth=1 (via symlink)
+    visit(dir-b)         depth=1
+    visit(link-to-a)     depth=2 (symlink)
+    visit(dir-a)         depth=2 (via symlink)
+    ...
+    depth=40 → return -ELOOP
+    
+✅ Depth limit reached - Exits cleanly</div>
+
+                <h4>Why This Works</h4>
+                <ul style="margin-left: 1.5rem; line-height: 1.8; color: #4a5568;">
+                    <li><strong>Bounded depth</strong>: Maximum <a href="https://github.com/torvalds/linux/blob/master/include/linux/namei.h#L14" target="_blank" style="color: #667eea; text-decoration: underline;">40 symlink resolutions</a> prevents infinite loops</li>
+                    <li><strong>Depth limiting, not loop detection</strong>: Kernel doesn't track visited paths - it simply counts symlink resolutions and stops at 40</li>
+                    <li><strong>Clear error</strong>: Returns -ELOOP (though the error message "loop detected" is somewhat misleading - it's really "depth limit exceeded")</li>
+                    <li><strong>Catches both loops and deep chains</strong>: A legitimate 50-link chain would also hit this limit</li>
+                </ul>
+
+                <div class="warning-box">
+                    <strong>⚠️ Important Distinction: Depth Limiting vs Loop Detection</strong><br><br>
+                    <strong>The loop exists from creation</strong> - the moment you create the symlink, the loop is there.<br><br>
+                    <strong>The kernel doesn't detect it</strong> - it doesn't track "I've been to dir-a before!"<br><br>
+                    <strong>Instead, it counts</strong>: depth = 1, 2, 3... 40. At 40, it stops with -ELOOP.<br><br>
+                    This means a legitimate 50-link chain (no loop) would also fail. The kernel prevents <em>any</em> deep symlink traversal, not just loops.
+                </div>
+
+                <h3>Why rm Works with Symlinks</h3>
+
+                <h4>Hard Links: Orphaned Directories</h4>
+                <div class="code">// With hard link (forbidden)
+dir-a (inode 1000, links: 4)
+  ├── . (self)
+  ├── .. (parent)
+  ├── dir-b (which has ..)
+  └── dir-b/link-to-a → inode 1000
+
+rm -rf dir-a:
+    remove_entry("dir-a")
+    
+    dir-a links: 4 → 3
+    (. link-to-a and dir-b/.. remain)
+    
+    if links == 0:
+        free_inode()  // NOT EXECUTED
+    
+    ❌ dir-a NOT freed (links = 3)
+    ❌ dir-b still inside dir-a
+    ❌ Can't reach link-to-a to remove it
+    ❌ ORPHANED: Unreachable but not freed
+    ❌ FILESYSTEM LEAK</div>
+
+                <h4>Symlinks: Clean Deletion</h4>
+                <div class="code">// With symlink (allowed)
+dir-a (inode 1000, links: 2)
+  ├── . (self)
+  └── .. (parent)
+
+link-to-a (inode 5000, separate!)
+  data = "../../dir-a"
+
+rm link-to-a:
+    inode = lookup("link-to-a")
+    remove_entry("link-to-a")
+    
+    inode 5000->i_nlink--  // Only symlink's inode!
+    
+    if inode->i_nlink == 0:
+        free_inode(5000)   // Symlink freed
+    
+    ✅ link-to-a freed completely
+    ✅ dir-a completely unaffected
+    ✅ No circular reference
+    ✅ No leak</div>
+
+                <h4>Key Differences</h4>
+                <ul style="margin-left: 1.5rem; line-height: 1.8; color: #4a5568;">
+                    <li><strong>Independent inodes</strong>: Symlink has its own inode (5000), separate from target (1000)</li>
+                    <li><strong>No link count impact</strong>: Deleting symlink doesn't touch target's link count</li>
+                    <li><strong>Path-based reference</strong>: Symlink stores path string, not inode pointer</li>
+                    <li><strong>Clean separation</strong>: Removing symlink is just removing one file, period</li>
+                </ul>
+
+                <div class="warning-box">
+                    <strong>⚠️ Critical Insight</strong><br>
+                    Hard links create shared inode ownership (circular refs). Symlinks create path references (no ownership). This fundamental difference makes symlinks safe for directories.
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script>
+    // Terminal animation utility
+    class Terminal {
+        constructor(elementId) {
+            this.element = document.getElementById(elementId);
+            this.lines = [];
+            this.typing = false;
+        }
+
+        clear() {
+            this.element.innerHTML = '';
+            this.lines = [];
+        }
+
+        async addLine(content, type = 'output', delay = 0) {
+            if (delay > 0) await this.sleep(delay);
+            
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            
+            if (type === 'command') {
+                line.innerHTML = `<span class="prompt">$</span> <span class="command">${content}</span>`;
+            } else {
+                const className = type === 'error' ? 'error-text' : 
+                                type === 'success' ? 'success-text' :
+                                type === 'warning' ? 'warning-text' : 'output';
+                line.innerHTML = `<span class="${className}">${content}</span>`;
+            }
+            
+            this.element.appendChild(line);
+            this.element.scrollTop = this.element.scrollHeight;
+            this.lines.push(line);
+        }
+
+        async typeCommand(command, execute = true) {
+            const line = document.createElement('div');
+            line.className = 'terminal-line';
+            line.innerHTML = '<span class="prompt">$</span> <span class="command"></span><span class="cursor"></span>';
+            this.element.appendChild(line);
+            
+            const commandSpan = line.querySelector('.command');
+            const cursor = line.querySelector('.cursor');
+            
+            for (let char of command) {
+                commandSpan.textContent += char;
+                await this.sleep(50);
+            }
+            
+            cursor.remove();
+            
+            if (execute) {
+                await this.sleep(300);
+            }
+            
+            this.element.scrollTop = this.element.scrollHeight;
+        }
+
+        sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+    }
+
+    // Canvas utilities
+    function resizeCanvas(canvas) {
+        const container = canvas.parentElement;
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = container.clientWidth * dpr;
+        canvas.height = container.clientHeight * dpr;
+        canvas.style.width = container.clientWidth + 'px';
+        canvas.style.height = container.clientHeight + 'px';
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        return ctx;
+    }
+
+    function drawDirectory(ctx, x, y, name, inode, linkCount, color = '#e6fffa') {
+        const width = 100;
+        const height = 70;
+        
+        // Directory box
+        ctx.fillStyle = color;
+        ctx.fillRect(x - width/2, y - height/2, width, height);
+        ctx.strokeStyle = '#2d3748';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(x - width/2, y - height/2, width, height);
+        
+        // Name
+        ctx.fillStyle = '#2d3748';
+        ctx.font = 'bold 13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(name, x, y - 10);
+        
+        // Inode
+        ctx.font = '11px monospace';
+        ctx.fillStyle = '#718096';
+        ctx.fillText(`inode: ${inode}`, x, y + 5);
+        
+        // Link count badge
+        if (linkCount !== undefined) {
+            ctx.fillStyle = linkCount > 1 ? '#fef5e7' : '#f0fff4';
+            ctx.fillRect(x - 30, y + 15, 60, 20);
+            ctx.strokeStyle = linkCount > 1 ? '#d69e2e' : '#38a169';
+            ctx.strokeRect(x - 30, y + 15, 60, 20);
+            ctx.fillStyle = linkCount > 1 ? '#d69e2e' : '#38a169';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.fillText(`links: ${linkCount}`, x, y + 28);
+        }
+    }
+
+    function drawArrow(ctx, x1, y1, x2, y2, label, color = '#2d3748', dashed = false) {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        
+        if (dashed) {
+            ctx.setLineDash([5, 5]);
+        }
+        
+        // Line
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        
+        // Arrowhead
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - 12 * Math.cos(angle - Math.PI / 6), y2 - 12 * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(x2 - 12 * Math.cos(angle + Math.PI / 6), y2 - 12 * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        
+        // Label
+        if (label) {
+            const midX = (x1 + x2) / 2;
+            const midY = (y1 + y2) / 2;
+            ctx.fillStyle = '#667eea';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(label, midX, midY - 8);
+        }
+        
+        ctx.restore();
+    }
+
+    function drawLinkCountChange(ctx, x, y, oldCount, newCount) {
+        // Draw attention-grabbing indicator for link count changes
+        const isIncrease = newCount > oldCount;
+        const color = isIncrease ? '#d69e2e' : '#c53030';
+        
+        // Pulsing background
+        ctx.fillStyle = isIncrease ? 'rgba(214, 158, 46, 0.2)' : 'rgba(197, 48, 48, 0.2)';
+        ctx.beginPath();
+        ctx.arc(x, y - 50, 35, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // Main change indicator
+        ctx.fillStyle = isIncrease ? '#fef5e7' : '#fed7d7';
+        ctx.fillRect(x - 40, y - 70, 80, 30);
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(x - 40, y - 70, 80, 30);
+        
+        // Arrow and text
+        ctx.fillStyle = color;
+        ctx.font = 'bold 18px sans-serif';
+        ctx.textAlign = 'center';
+        const arrow = isIncrease ? '↑' : '↓';
+        ctx.fillText(`${oldCount} ${arrow} ${newCount}`, x, y - 48);
+        
+        // Label
+        ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('LINK COUNT', x, y - 75);
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', () => {
+        // Tab switching
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const tabName = tab.dataset.tab;
+                
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                
+                tabContents.forEach(content => {
+                    if (content.dataset.content === tabName) {
+                        content.classList.add('active');
+                        // Resize canvas when tab becomes visible
+                        const canvas = content.querySelector('canvas');
+                        if (canvas) {
+                            resizeCanvas(canvas);
+                        }
+                    } else {
+                        content.classList.remove('active');
+                    }
+                });
+            });
+        });
+
+        // Initialize terminals
+        const loopTerm = new Terminal('loop-terminal');
+        const refcountTerm = new Terminal('refcount-terminal');
+        const comparisonTerm = new Terminal('comparison-terminal');
+
+        // Initialize canvases
+        const loopCanvas = document.getElementById('loop-canvas');
+        const refcountCanvas = document.getElementById('refcount-canvas');
+        const comparisonCanvas = document.getElementById('comparison-canvas');
+
+        let loopCtx = resizeCanvas(loopCanvas);
+        let refcountCtx = resizeCanvas(refcountCanvas);
+        let comparisonCtx = resizeCanvas(comparisonCanvas);
+
+        // State
+        let loopState = { step: 0, animating: false };
+        let refcountState = { step: 0 };
+        let comparisonState = { step: 0 };
+
+        // Draw initial screens
+        function drawWelcome(ctx, canvas) {
+            ctx.fillStyle = '#718096';
+            ctx.font = '14px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Click a button below to start the demo', canvas.width / 2, canvas.height / 2);
+        }
+
+        drawWelcome(loopCtx, loopCanvas);
+        drawWelcome(refcountCtx, refcountCanvas);
+        drawWelcome(comparisonCtx, comparisonCanvas);
+
+        // TAB 1: Infinite Loop Demo
+        document.getElementById('loop-create').addEventListener('click', async () => {
+            const btn = document.getElementById('loop-create');
+            btn.disabled = true;
+            document.getElementById('loop-status').textContent = 'Creating directory structure...';
+            
+            loopTerm.clear();
+            loopCtx.clearRect(0, 0, loopCanvas.width, loopCanvas.height);
+            const w = loopCanvas.clientWidth;
+            const h = loopCanvas.clientHeight;
+            
+            // Step 1: mkdir -p dir-a/dir-b
+            await loopTerm.typeCommand('mkdir -p /home/user/dir-a/dir-b');
+            
+            // Show dir-a appearing
+            await loopTerm.sleep(200);
+            drawDirectory(loopCtx, w * 0.3, h * 0.3, 'dir-a', '1000', undefined, '#c6f6d5');
+            await loopTerm.sleep(300);
+            
+            // Show dir-b appearing
+            drawDirectory(loopCtx, w * 0.7, h * 0.5, 'dir-b', '2000', undefined, '#c6f6d5');
+            drawArrow(loopCtx, w * 0.3 + 50, h * 0.3, w * 0.7 - 50, h * 0.5, 'contains', '#38a169');
+            
+            await loopTerm.addLine('', 'output', 500);
+            
+            // Finalize colors
+            loopCtx.clearRect(0, 0, loopCanvas.width, loopCanvas.height);
+            drawDirectory(loopCtx, w * 0.3, h * 0.3, 'dir-a', '1000', undefined, '#e6fffa');
+            drawDirectory(loopCtx, w * 0.7, h * 0.5, 'dir-b', '2000', undefined, '#e6fffa');
+            drawArrow(loopCtx, w * 0.3 + 50, h * 0.3, w * 0.7 - 50, h * 0.5, 'contains');
+            
+            // Step 2: ln command
+            await loopTerm.typeCommand('ln /home/user/dir-a /home/user/dir-a/dir-b/link-to-a');
+            await loopTerm.addLine("ln: failed to create hard link '/home/user/dir-a/dir-b/link-to-a': Operation not permitted", 'error', 300);
+            await loopTerm.addLine('', 'output', 200);
+            await loopTerm.addLine('⚠️  For demo purposes, imagine this succeeded...', 'warning', 500);
+            
+            // Show link-to-a appearing
+            drawDirectory(loopCtx, w * 0.7, h * 0.75, 'link-to-a', '1000', undefined, '#fed7d7');
+            drawArrow(loopCtx, w * 0.7, h * 0.5 + 35, w * 0.7, h * 0.75 - 35, 'inside');
+            await loopTerm.sleep(300);
+            
+            // Show the problematic hard link arrow
+            drawArrow(loopCtx, w * 0.7 - 40, h * 0.75, w * 0.3 + 40, h * 0.3, 'hard link!', '#c53030', true);
+            
+            loopState.step = 1;
+            btn.disabled = false;
+            document.getElementById('loop-status').textContent = 'Cycle created - Try running find!';
+            document.getElementById('loop-status').className = 'status';
+        });
+
+        document.getElementById('loop-find').addEventListener('click', async () => {
+            if (loopState.step < 1) {
+                alert('Create the directory cycle first!');
+                return;
+            }
+            
+            const btn = document.getElementById('loop-find');
+            btn.disabled = true;
+            document.getElementById('loop-status').textContent = 'Running find command...';
+            document.getElementById('loop-status').className = 'status running';
+            
+            const w = loopCanvas.clientWidth;
+            const h = loopCanvas.clientHeight;
+            
+            // Define path positions for traversal
+            const positions = [
+                { x: w * 0.3, y: h * 0.3, name: 'dir-a' },
+                { x: w * 0.7, y: h * 0.5, name: 'dir-b' },
+                { x: w * 0.7, y: h * 0.75, name: 'link-to-a' },
+                { x: w * 0.3, y: h * 0.3, name: 'dir-a' }
+            ];
+            
+            let pathIndex = 0;
+            let loopCounter = 0;
+            const maxLoops = 8;
+            const stepsPerMove = 15;
+            let currentStep = 0;
+            let animationRunning = true;
+            
+            // Start terminal output
+            await loopTerm.typeCommand('find /home/user/dir-a');
+            
+            // Function to add terminal line with path
+            const terminalOutputs = [
+                '/home/user/dir-a',
+                '/home/user/dir-a/dir-b',
+                '/home/user/dir-a/dir-b/link-to-a',
+                '/home/user/dir-a/dir-b/link-to-a/dir-b',
+                '/home/user/dir-a/dir-b/link-to-a/dir-b/link-to-a',
+                '/home/user/dir-a/dir-b/link-to-a/dir-b/link-to-a/dir-b',
+                '/home/user/dir-a/dir-b/link-to-a/dir-b/link-to-a/dir-b/link-to-a',
+                '...'
+            ];
+            
+            let terminalIndex = 0;
+            const terminalInterval = setInterval(() => {
+                if (terminalIndex < terminalOutputs.length) {
+                    loopTerm.addLine(terminalOutputs[terminalIndex], 'output');
+                    terminalIndex++;
+                } else if (terminalIndex === terminalOutputs.length) {
+                    loopTerm.addLine('🔄 INFINITE LOOP - System would hang here forever!', 'error');
+                    terminalIndex++;
+                }
+            }, 600);
+            
+            // Animation loop running simultaneously
+            const animateLoop = setInterval(() => {
+                if (!animationRunning) {
+                    clearInterval(animateLoop);
+                    return;
+                }
+                
+                loopCtx.clearRect(0, 0, loopCanvas.width, loopCanvas.height);
+                
+                // Draw static directories
+                drawDirectory(loopCtx, w * 0.3, h * 0.3, 'dir-a', '1000', undefined, '#e6fffa');
+                drawDirectory(loopCtx, w * 0.7, h * 0.5, 'dir-b', '2000', undefined, '#e6fffa');
+                drawDirectory(loopCtx, w * 0.7, h * 0.75, 'link-to-a', '1000', undefined, '#fed7d7');
+                
+                // Draw static arrows (faded)
+                loopCtx.save();
+                loopCtx.globalAlpha = 0.2;
+                drawArrow(loopCtx, w * 0.3 + 50, h * 0.3, w * 0.7 - 50, h * 0.5, '', '#718096');
+                drawArrow(loopCtx, w * 0.7, h * 0.5 + 35, w * 0.7, h * 0.75 - 35, '', '#718096');
+                drawArrow(loopCtx, w * 0.7 - 40, h * 0.75, w * 0.3 + 40, h * 0.3, '', '#c53030', true);
+                loopCtx.restore();
+                
+                // Calculate current position
+                const currentPos = positions[pathIndex];
+                const nextPos = positions[(pathIndex + 1) % positions.length];
+                const progress = currentStep / stepsPerMove;
+                
+                const currentX = currentPos.x + (nextPos.x - currentPos.x) * progress;
+                const currentY = currentPos.y + (nextPos.y - currentPos.y) * progress;
+                
+                // Draw animated path trail
+                if (currentStep > 0) {
+                    const gradient = loopCtx.createLinearGradient(currentPos.x, currentPos.y, currentX, currentY);
+                    gradient.addColorStop(0, 'rgba(102, 126, 234, 0.3)');
+                    gradient.addColorStop(1, 'rgba(102, 126, 234, 0.9)');
+                    
+                    loopCtx.strokeStyle = gradient;
+                    loopCtx.lineWidth = 5;
+                    loopCtx.beginPath();
+                    loopCtx.moveTo(currentPos.x, currentPos.y);
+                    loopCtx.lineTo(currentX, currentY);
+                    loopCtx.stroke();
+                }
+                
+                // Draw moving indicator
+                loopCtx.fillStyle = 'rgba(102, 126, 234, 0.2)';
+                loopCtx.beginPath();
+                loopCtx.arc(currentX, currentY, 18, 0, Math.PI * 2);
+                loopCtx.fill();
+                
+                loopCtx.fillStyle = '#667eea';
+                loopCtx.beginPath();
+                loopCtx.arc(currentX, currentY, 10, 0, Math.PI * 2);
+                loopCtx.fill();
+                
+                // Label
+                loopCtx.fillStyle = '#667eea';
+                loopCtx.font = 'bold 12px sans-serif';
+                loopCtx.textAlign = 'center';
+                loopCtx.fillText(`find: ${currentPos.name}`, currentX, currentY - 28);
+                
+                // Counter
+                loopCtx.fillStyle = loopCounter >= 5 ? '#c53030' : '#667eea';
+                loopCtx.font = 'bold 20px sans-serif';
+                loopCtx.textAlign = 'left';
+                loopCtx.fillText(`Loop #${loopCounter + 1}`, 20, 35);
+                
+                // Update state
+                currentStep++;
+                if (currentStep >= stepsPerMove) {
+                    currentStep = 0;
+                    pathIndex++;
+                    
+                    if (pathIndex >= positions.length) {
+                        pathIndex = 1;
+                        loopCounter++;
+                        
+                        if (loopCounter >= maxLoops) {
+                            animationRunning = false;
+                            clearInterval(animateLoop);
+                            clearInterval(terminalInterval);
+                            
+                            // Final frozen state
+                            loopCtx.clearRect(0, 0, loopCanvas.width, loopCanvas.height);
+                            drawDirectory(loopCtx, w * 0.3, h * 0.3, 'dir-a', '1000', undefined, '#fed7d7');
+                            drawDirectory(loopCtx, w * 0.7, h * 0.5, 'dir-b', '2000', undefined, '#fed7d7');
+                            drawDirectory(loopCtx, w * 0.7, h * 0.75, 'link-to-a', '1000', undefined, '#fed7d7');
+                            
+                            drawArrow(loopCtx, w * 0.3 + 50, h * 0.3, w * 0.7 - 50, h * 0.5, '', '#c53030');
+                            drawArrow(loopCtx, w * 0.7, h * 0.5 + 35, w * 0.7, h * 0.75 - 35, '', '#c53030');
+                            drawArrow(loopCtx, w * 0.7 - 40, h * 0.75, w * 0.3 + 40, h * 0.3, '', '#c53030', true);
+                            
+                            loopCtx.fillStyle = '#c53030';
+                            loopCtx.font = 'bold 24px sans-serif';
+                            loopCtx.textAlign = 'center';
+                            loopCtx.fillText('❌ SYSTEM FROZEN', w * 0.5, h * 0.15);
+                            loopCtx.font = '16px sans-serif';
+                            loopCtx.fillText(`Completed ${maxLoops} cycles - would continue forever`, w * 0.5, h * 0.9);
+                            
+                            document.getElementById('loop-status').textContent = '❌ System frozen - Infinite loop!';
+                            document.getElementById('loop-status').className = 'status error';
+                            btn.disabled = false;
+                        }
+                    }
+                }
+            }, 40);
+        });
+
+        document.getElementById('loop-reset').addEventListener('click', () => {
+            loopTerm.clear();
+            loopCtx.clearRect(0, 0, loopCanvas.width, loopCanvas.height);
+            drawWelcome(loopCtx, loopCanvas);
+            loopState = { step: 0, animating: false };
+            document.getElementById('loop-status').textContent = 'Ready - Click "Create Directory Cycle"';
+            document.getElementById('loop-status').className = 'status';
+            document.getElementById('loop-create').disabled = false;
+            document.getElementById('loop-find').disabled = false;
+        });
+
+        // TAB 2: Reference Counting Demo
+        document.getElementById('refcount-create').addEventListener('click', async () => {
+            const btn = document.getElementById('refcount-create');
+            btn.disabled = true;
+            document.getElementById('refcount-status').textContent = 'Creating circular references...';
+            
+            refcountTerm.clear();
+            refcountCtx.clearRect(0, 0, refcountCanvas.width, refcountCanvas.height);
+            const w = refcountCanvas.clientWidth;
+            const h = refcountCanvas.clientHeight;
+            
+            // Step 1: mkdir dir-a
+            await refcountTerm.typeCommand('mkdir dir-a');
+            await refcountTerm.addLine('', 'output', 200);
+            
+            // Show dir-a appearing with link count 2
+            drawDirectory(refcountCtx, w * 0.35, h * 0.5, 'dir-a', '1000', 2, '#c6f6d5');
+            await refcountTerm.sleep(300);
+            
+            await refcountTerm.typeCommand('stat dir-a | grep Links');
+            await refcountTerm.addLine('Links: 2', 'success', 400);
+            await refcountTerm.addLine('  (. and parent)', 'output', 400);
+            
+            // Normalize color
+            refcountCtx.clearRect(0, 0, refcountCanvas.width, refcountCanvas.height);
+            drawDirectory(refcountCtx, w * 0.35, h * 0.5, 'dir-a', '1000', 2, '#e6fffa');
+            
+            // Step 2: mkdir dir-a/dir-b
+            await refcountTerm.typeCommand('mkdir dir-a/dir-b');
+            await refcountTerm.addLine('', 'output', 200);
+            
+            // Show dir-b appearing WITH link count change indicator
+            refcountCtx.clearRect(0, 0, refcountCanvas.width, refcountCanvas.height);
+            drawDirectory(refcountCtx, w * 0.35, h * 0.5, 'dir-a', '1000', 2, '#e6fffa');
+            drawDirectory(refcountCtx, w * 0.65, h * 0.5, 'dir-b', '2000', 2, '#c6f6d5');
+            drawArrow(refcountCtx, w * 0.35 + 50, h * 0.5, w * 0.65 - 50, h * 0.5, 'contains', '#38a169');
+            
+            // PROMINENT link count change indicator
+            drawLinkCountChange(refcountCtx, w * 0.35, h * 0.5, 2, 3);
+            await refcountTerm.sleep(800);
+            
+            // Update to show new link count
+            refcountCtx.clearRect(0, 0, refcountCanvas.width, refcountCanvas.height);
+            drawDirectory(refcountCtx, w * 0.35, h * 0.5, 'dir-a', '1000', 3, '#fef5e7');
+            drawDirectory(refcountCtx, w * 0.65, h * 0.5, 'dir-b', '2000', 2, '#e6fffa');
+            drawArrow(refcountCtx, w * 0.35 + 50, h * 0.5, w * 0.65 - 50, h * 0.5, 'contains');
+            await refcountTerm.sleep(300);
+            
+            await refcountTerm.typeCommand('stat dir-a | grep Links');
+            await refcountTerm.addLine('Links: 3', 'success', 400);
+            await refcountTerm.addLine('  (. parent and dir-b/..)', 'output', 400);
+            
+            // Normalize colors
+            refcountCtx.clearRect(0, 0, refcountCanvas.width, refcountCanvas.height);
+            drawDirectory(refcountCtx, w * 0.35, h * 0.5, 'dir-a', '1000', 3, '#e6fffa');
+            drawDirectory(refcountCtx, w * 0.65, h * 0.5, 'dir-b', '2000', 2, '#e6fffa');
+            drawArrow(refcountCtx, w * 0.35 + 50, h * 0.5, w * 0.65 - 50, h * 0.5, 'contains');
+            
+            // Step 3: ln command (fails but imagine it worked)
+            await refcountTerm.typeCommand('ln dir-a dir-a/dir-b/link-to-a');
+            await refcountTerm.addLine("ln: failed to create hard link 'dir-a/dir-b/link-to-a': Operation not permitted", 'error', 400);
+            await refcountTerm.addLine('', 'output', 200);
+            await refcountTerm.addLine('⚠️  Imagine this succeeded...', 'warning', 500);
+            
+            // Show the hard link being established WITH link count change
+            refcountCtx.clearRect(0, 0, refcountCanvas.width, refcountCanvas.height);
+            drawDirectory(refcountCtx, w * 0.35, h * 0.5, 'dir-a', '1000', 3, '#e6fffa');
+            drawDirectory(refcountCtx, w * 0.65, h * 0.5, 'dir-b', '2000', 2, '#e6fffa');
+            drawArrow(refcountCtx, w * 0.35 + 50, h * 0.5, w * 0.65 - 50, h * 0.5, 'contains');
+            
+            // Draw hard link arrow
+            refcountCtx.strokeStyle = '#c53030';
+            refcountCtx.lineWidth = 3;
+            refcountCtx.setLineDash([5, 5]);
+            refcountCtx.beginPath();
+            refcountCtx.arc(w * 0.5, h * 0.3, 100, 0.1 * Math.PI, 0.9 * Math.PI);
+            refcountCtx.stroke();
+            refcountCtx.setLineDash([]);
+            
+            refcountCtx.fillStyle = '#c53030';
+            refcountCtx.font = 'bold 12px sans-serif';
+            refcountCtx.textAlign = 'center';
+            refcountCtx.fillText('hard link (link-to-a)', w * 0.5, h * 0.2);
+            
+            // PROMINENT link count change indicator
+            drawLinkCountChange(refcountCtx, w * 0.35, h * 0.5, 3, 4);
+            await refcountTerm.sleep(800);
+            
+            // Update to show final state
+            refcountCtx.clearRect(0, 0, refcountCanvas.width, refcountCanvas.height);
+            drawDirectory(refcountCtx, w * 0.35, h * 0.5, 'dir-a', '1000', 4, '#fef5e7');
+            drawDirectory(refcountCtx, w * 0.65, h * 0.5, 'dir-b', '2000', 2, '#e6fffa');
+            drawArrow(refcountCtx, w * 0.35 + 50, h * 0.5, w * 0.65 - 50, h * 0.5, 'contains');
+            
+            // Draw hard link arrow
+            refcountCtx.strokeStyle = '#c53030';
+            refcountCtx.lineWidth = 3;
+            refcountCtx.setLineDash([5, 5]);
+            refcountCtx.beginPath();
+            refcountCtx.arc(w * 0.5, h * 0.3, 100, 0.1 * Math.PI, 0.9 * Math.PI);
+            refcountCtx.stroke();
+            refcountCtx.setLineDash([]);
+            
+            refcountCtx.fillStyle = '#c53030';
+            refcountCtx.font = 'bold 12px sans-serif';
+            refcountCtx.textAlign = 'center';
+            refcountCtx.fillText('hard link (link-to-a)', w * 0.5, h * 0.2);
+            
+            await refcountTerm.addLine('dir-a: links 3 → 4', 'warning', 300);
+            await refcountTerm.addLine('  (. parent dir-b/.. link-to-a)', 'output', 300);
+            
+            refcountState.step = 1;
+            btn.disabled = false;
+            document.getElementById('refcount-status').textContent = 'Circular references created!';
+            document.getElementById('refcount-status').className = 'status';
+        });
+
+        document.getElementById('refcount-delete').addEventListener('click', async () => {
+            if (refcountState.step < 1) {
+                alert('Create the circular references first!');
+                return;
+            }
+            
+            const btn = document.getElementById('refcount-delete');
+            btn.disabled = true;
+            document.getElementById('refcount-status').textContent = 'Attempting deletion...';
+            document.getElementById('refcount-status').className = 'status running';
+            
+            const w = refcountCanvas.clientWidth;
+            const h = refcountCanvas.clientHeight;
+            
+            await refcountTerm.typeCommand('cd .. && rm -rf dir-a');
+            await refcountTerm.sleep(300);
+            
+            // Animate the deletion attempt
+            await refcountTerm.addLine('Removing parent entry to dir-a...', 'output', 500);
+            
+            // Show link count decreasing with PROMINENT indicator
+            refcountCtx.clearRect(0, 0, refcountCanvas.width, refcountCanvas.height);
+            drawDirectory(refcountCtx, w * 0.35, h * 0.5, 'dir-a', '1000', 4, '#fef5e7');
+            drawDirectory(refcountCtx, w * 0.65, h * 0.5, 'dir-b', '2000', 2, '#e6fffa');
+            drawArrow(refcountCtx, w * 0.35 + 50, h * 0.5, w * 0.65 - 50, h * 0.5, 'contains');
+            refcountCtx.strokeStyle = '#c53030';
+            refcountCtx.lineWidth = 3;
+            refcountCtx.setLineDash([5, 5]);
+            refcountCtx.beginPath();
+            refcountCtx.arc(w * 0.5, h * 0.3, 100, 0.1 * Math.PI, 0.9 * Math.PI);
+            refcountCtx.stroke();
+            refcountCtx.setLineDash([]);
+            refcountCtx.fillStyle = '#c53030';
+            refcountCtx.font = 'bold 12px sans-serif';
+            refcountCtx.textAlign = 'center';
+            refcountCtx.fillText('hard link (link-to-a)', w * 0.5, h * 0.2);
+            
+            // PROMINENT link count change indicator (DECREASE)
+            drawLinkCountChange(refcountCtx, w * 0.35, h * 0.5, 4, 3);
+            
+            await refcountTerm.addLine('dir-a link count: 4 → 3', 'warning', 800);
+            
+            // Update to show new count
+            refcountCtx.clearRect(0, 0, refcountCanvas.width, refcountCanvas.height);
+            drawDirectory(refcountCtx, w * 0.35, h * 0.5, 'dir-a', '1000', 3, '#fed7d7');
+            drawDirectory(refcountCtx, w * 0.65, h * 0.5, 'dir-b', '2000', 2, '#fed7d7');
+            drawArrow(refcountCtx, w * 0.35 + 50, h * 0.5, w * 0.65 - 50, h * 0.5, 'contains');
+            refcountCtx.strokeStyle = '#c53030';
+            refcountCtx.lineWidth = 3;
+            refcountCtx.setLineDash([5, 5]);
+            refcountCtx.beginPath();
+            refcountCtx.arc(w * 0.5, h * 0.3, 100, 0.1 * Math.PI, 0.9 * Math.PI);
+            refcountCtx.stroke();
+            refcountCtx.setLineDash([]);
+            refcountCtx.fillStyle = '#c53030';
+            refcountCtx.font = 'bold 12px sans-serif';
+            refcountCtx.textAlign = 'center';
+            refcountCtx.fillText('hard link (link-to-a)', w * 0.5, h * 0.2);
+            
+            await refcountTerm.addLine('', 'output', 300);
+            await refcountTerm.addLine('Checking if dir-a can be freed...', 'output', 500);
+            await refcountTerm.addLine('❌ dir-a link count = 3 (NOT zero!)', 'error', 500);
+            await refcountTerm.addLine('❌ dir-a NOT freed', 'error', 500);
+            
+            // Add visual indicator that it's not freed
+            refcountCtx.fillStyle = '#c53030';
+            refcountCtx.font = 'bold 14px sans-serif';
+            refcountCtx.fillText('Still has 3 links!', w * 0.35, h * 0.35);
+            
+            await refcountTerm.addLine('❌ dir-b still inside dir-a', 'error', 500);
+            await refcountTerm.addLine('❌ Both directories orphaned!', 'error', 500);
+            
+            // Draw orphaned indicator
+            refcountCtx.fillStyle = '#c53030';
+            refcountCtx.font = 'bold 16px sans-serif';
+            refcountCtx.textAlign = 'center';
+            refcountCtx.fillText('⚠️ ORPHANED', w * 0.5, h * 0.75);
+            refcountCtx.font = '12px sans-serif';
+            refcountCtx.fillText('Not accessible but not freed', w * 0.5, h * 0.8);
+            
+            await refcountTerm.addLine('', 'output', 300);
+            await refcountTerm.addLine('⚠️  FILESYSTEM MEMORY LEAK', 'error', 500);
+            
+            refcountState.step = 2;
+            btn.disabled = false;
+            document.getElementById('refcount-status').textContent = '❌ Deletion failed - Filesystem leak!';
+            document.getElementById('refcount-status').className = 'status error';
+        });
+
+        document.getElementById('refcount-reset').addEventListener('click', () => {
+            refcountTerm.clear();
+            refcountCtx.clearRect(0, 0, refcountCanvas.width, refcountCanvas.height);
+            drawWelcome(refcountCtx, refcountCanvas);
+            refcountState = { step: 0 };
+            document.getElementById('refcount-status').textContent = 'Ready - Click "Create Circular Refs"';
+            document.getElementById('refcount-status').className = 'status';
+            document.getElementById('refcount-create').disabled = false;
+            document.getElementById('refcount-delete').disabled = false;
+        });
+
+        // TAB 3: Comparison Demo
+        document.getElementById('comparison-create').addEventListener('click', async () => {
+            const btn = document.getElementById('comparison-create');
+            btn.disabled = true;
+            document.getElementById('comparison-status').textContent = 'Creating symlink loop...';
+            
+            comparisonTerm.clear();
+            comparisonCtx.clearRect(0, 0, comparisonCanvas.width, comparisonCanvas.height);
+            const w = comparisonCanvas.clientWidth;
+            const h = comparisonCanvas.clientHeight;
+            
+            // Step 1: mkdir -p dir-a/dir-b
+            await comparisonTerm.typeCommand('mkdir -p dir-a/dir-b');
+            
+            // Show dir-a appearing
+            await comparisonTerm.sleep(200);
+            drawDirectory(comparisonCtx, w * 0.3, h * 0.4, 'dir-a', '1000', 2, '#c6f6d5');
+            await comparisonTerm.sleep(300);
+            
+            // Show dir-b appearing
+            drawDirectory(comparisonCtx, w * 0.7, h * 0.5, 'dir-b', '2000', 2, '#c6f6d5');
+            drawArrow(comparisonCtx, w * 0.3 + 50, h * 0.4, w * 0.7 - 50, h * 0.5, 'contains', '#38a169');
+            
+            await comparisonTerm.addLine('', 'output', 500);
+            
+            // Finalize colors
+            comparisonCtx.clearRect(0, 0, comparisonCanvas.width, comparisonCanvas.height);
+            drawDirectory(comparisonCtx, w * 0.3, h * 0.4, 'dir-a', '1000', 2, '#e6fffa');
+            drawDirectory(comparisonCtx, w * 0.7, h * 0.5, 'dir-b', '2000', 2, '#e6fffa');
+            drawArrow(comparisonCtx, w * 0.3 + 50, h * 0.4, w * 0.7 - 50, h * 0.5, 'contains');
+            
+            // Step 2: ln -s command
+            await comparisonTerm.typeCommand('ln -s ../../dir-a dir-a/dir-b/link-to-a');
+            await comparisonTerm.addLine('✅ Success! Symlink created', 'success', 400);
+            
+            // Symlink box appears
+            comparisonCtx.fillStyle = '#ebf8ff';
+            comparisonCtx.fillRect(w * 0.7 - 45, h * 0.7 - 25, 90, 50);
+            comparisonCtx.strokeStyle = '#4299e1';
+            comparisonCtx.lineWidth = 2;
+            comparisonCtx.setLineDash([3, 3]);
+            comparisonCtx.strokeRect(w * 0.7 - 45, h * 0.7 - 25, 90, 50);
+            comparisonCtx.setLineDash([]);
+            
+            comparisonCtx.fillStyle = '#2d3748';
+            comparisonCtx.font = 'bold 12px sans-serif';
+            comparisonCtx.textAlign = 'center';
+            comparisonCtx.fillText('link-to-a', w * 0.7, h * 0.7 - 5);
+            comparisonCtx.font = '10px monospace';
+            comparisonCtx.fillStyle = '#4299e1';
+            comparisonCtx.fillText('symlink', w * 0.7, h * 0.7 + 10);
+            
+            drawArrow(comparisonCtx, w * 0.7, h * 0.5 + 35, w * 0.7, h * 0.7 - 25, 'inside');
+            await comparisonTerm.sleep(300);
+            
+            // Draw symlink arrow (dashed blue)
+            drawArrow(comparisonCtx, w * 0.7 - 45, h * 0.7, w * 0.3 + 45, h * 0.4, 'points to', '#4299e1', true);
+            
+            await comparisonTerm.addLine('', 'output', 200);
+            await comparisonTerm.typeCommand('ls -l dir-a/dir-b/');
+            await comparisonTerm.addLine('lrwxrwxrwx 1 user user 12 Nov 06 15:30 link-to-a -> ../../dir-a', 'output', 400);
+            await comparisonTerm.addLine('', 'output', 200);
+            await comparisonTerm.addLine('✅ No link count impact on dir-a', 'success', 200);
+            
+            comparisonState.step = 1;
+            btn.disabled = false;
+            document.getElementById('comparison-status').textContent = 'Symlink loop created successfully!';
+            document.getElementById('comparison-status').className = 'status success';
+        });
+
+        document.getElementById('comparison-find').addEventListener('click', async () => {
+            if (comparisonState.step < 1) {
+                alert('Create the symlink loop first!');
+                return;
+            }
+            
+            const btn = document.getElementById('comparison-find');
+            btn.disabled = true;
+            document.getElementById('comparison-status').textContent = 'Running find with symlink following...';
+            document.getElementById('comparison-status').className = 'status running';
+            
+            const w = comparisonCanvas.clientWidth;
+            const h = comparisonCanvas.clientHeight;
+            
+            // Terminal and visual animation running simultaneously
+            await comparisonTerm.typeCommand('find -L dir-a');
+            
+            let depth = 0;
+            const maxDepth = 40;
+            const terminalOutputs = [
+                'dir-a',
+                'dir-a/dir-b',
+                'dir-a/dir-b/link-to-a'
+            ];
+            
+            // Initial paths
+            for (let i = 0; i < terminalOutputs.length; i++) {
+                await comparisonTerm.addLine(terminalOutputs[i], 'output', 600);
+                if (i === 2) {
+                    depth = 1;
+                    await comparisonTerm.addLine(`  → Following symlink (depth: ${depth})`, 'output', 400);
+                }
+            }
+            
+            // Animated depth counter on canvas
+            const animateDepth = setInterval(() => {
+                if (depth >= maxDepth) {
+                    clearInterval(animateDepth);
+                    return;
+                }
+                
+                depth++;
+                
+                // Redraw entire canvas with depth counter
+                comparisonCtx.clearRect(0, 0, comparisonCanvas.width, comparisonCanvas.height);
+                
+                // Draw directories (faded during animation)
+                comparisonCtx.save();
+                comparisonCtx.globalAlpha = 0.3;
+                drawDirectory(comparisonCtx, w * 0.3, h * 0.4, 'dir-a', '1000', 2, '#e6fffa');
+                drawDirectory(comparisonCtx, w * 0.7, h * 0.5, 'dir-b', '2000', 2, '#e6fffa');
+                
+                // Symlink box
+                comparisonCtx.fillStyle = '#ebf8ff';
+                comparisonCtx.fillRect(w * 0.7 - 45, h * 0.7 - 25, 90, 50);
+                comparisonCtx.strokeStyle = '#4299e1';
+                comparisonCtx.lineWidth = 2;
+                comparisonCtx.setLineDash([3, 3]);
+                comparisonCtx.strokeRect(w * 0.7 - 45, h * 0.7 - 25, 90, 50);
+                comparisonCtx.setLineDash([]);
+                
+                comparisonCtx.fillStyle = '#2d3748';
+                comparisonCtx.font = 'bold 12px sans-serif';
+                comparisonCtx.textAlign = 'center';
+                comparisonCtx.fillText('link-to-a', w * 0.7, h * 0.7 - 5);
+                comparisonCtx.font = '10px monospace';
+                comparisonCtx.fillStyle = '#4299e1';
+                comparisonCtx.fillText('symlink', w * 0.7, h * 0.7 + 10);
+                
+                drawArrow(comparisonCtx, w * 0.3 + 50, h * 0.4, w * 0.7 - 50, h * 0.5, '', '#718096');
+                drawArrow(comparisonCtx, w * 0.7, h * 0.5 + 35, w * 0.7, h * 0.7 - 25, '', '#718096');
+                drawArrow(comparisonCtx, w * 0.7 - 45, h * 0.7, w * 0.3 + 45, h * 0.4, '', '#4299e1', true);
+                comparisonCtx.restore();
+                
+                // PROMINENT depth counter
+                const color = depth >= 35 ? '#d69e2e' : depth >= 20 ? '#667eea' : '#4299e1';
+                const bgColor = depth >= 35 ? '#fef5e7' : depth >= 20 ? '#f0f4ff' : '#ebf8ff';
+                
+                comparisonCtx.fillStyle = bgColor;
+                comparisonCtx.fillRect(w * 0.5 - 80, h * 0.15, 160, 70);
+                comparisonCtx.strokeStyle = color;
+                comparisonCtx.lineWidth = 3;
+                comparisonCtx.strokeRect(w * 0.5 - 80, h * 0.15, 160, 70);
+                
+                comparisonCtx.fillStyle = color;
+                comparisonCtx.font = 'bold 32px sans-serif';
+                comparisonCtx.textAlign = 'center';
+                comparisonCtx.fillText(`DEPTH: ${depth}`, w * 0.5, h * 0.15 + 45);
+                
+                // Add terminal output periodically
+                if (depth % 5 === 0 && depth < maxDepth) {
+                    const pathDepth = '/link-to-a'.repeat(Math.floor(depth / 2));
+                    comparisonTerm.addLine(`dir-a/dir-b${pathDepth}`, 'output');
+                }
+            }, 100);
+            
+            // Wait for animation to complete
+            await comparisonTerm.sleep(maxDepth * 100 + 500);
+            
+            // Final state
+            comparisonCtx.clearRect(0, 0, comparisonCanvas.width, comparisonCanvas.height);
+            
+            // Draw directories in success green
+            drawDirectory(comparisonCtx, w * 0.3, h * 0.4, 'dir-a', '1000', 2, '#c6f6d5');
+            drawDirectory(comparisonCtx, w * 0.7, h * 0.5, 'dir-b', '2000', 2, '#c6f6d5');
+            
+            // Symlink box in green
+            comparisonCtx.fillStyle = '#c6f6d5';
+            comparisonCtx.fillRect(w * 0.7 - 45, h * 0.7 - 25, 90, 50);
+            comparisonCtx.strokeStyle = '#38a169';
+            comparisonCtx.lineWidth = 2;
+            comparisonCtx.setLineDash([3, 3]);
+            comparisonCtx.strokeRect(w * 0.7 - 45, h * 0.7 - 25, 90, 50);
+            comparisonCtx.setLineDash([]);
+            
+            comparisonCtx.fillStyle = '#2d3748';
+            comparisonCtx.font = 'bold 12px sans-serif';
+            comparisonCtx.textAlign = 'center';
+            comparisonCtx.fillText('link-to-a', w * 0.7, h * 0.7 - 5);
+            comparisonCtx.font = '10px monospace';
+            comparisonCtx.fillStyle = '#38a169';
+            comparisonCtx.fillText('SAFE symlink', w * 0.7, h * 0.7 + 10);
+            
+            drawArrow(comparisonCtx, w * 0.3 + 50, h * 0.4, w * 0.7 - 50, h * 0.5, '', '#38a169');
+            drawArrow(comparisonCtx, w * 0.7, h * 0.5 + 35, w * 0.7, h * 0.7 - 25, '', '#38a169');
+            drawArrow(comparisonCtx, w * 0.7 - 45, h * 0.7, w * 0.3 + 45, h * 0.4, '', '#38a169', true);
+            
+            // Success message
+            comparisonCtx.fillStyle = '#38a169';
+            comparisonCtx.font = 'bold 24px sans-serif';
+            comparisonCtx.textAlign = 'center';
+            comparisonCtx.fillText('✓ DEPTH LIMIT REACHED (40)', w * 0.5, h * 0.15);
+            comparisonCtx.font = '14px sans-serif';
+            comparisonCtx.fillText('Symlinks are SAFE - System protected!', w * 0.5, h * 0.9);
+            
+            await comparisonTerm.addLine('', 'output', 300);
+            await comparisonTerm.addLine('find: File system loop detected', 'warning', 300);
+            await comparisonTerm.addLine('(Kernel message - actually means "depth limit exceeded")', 'output', 300);
+            await comparisonTerm.addLine('', 'output', 200);
+            await comparisonTerm.addLine('✅ find completed successfully!', 'success', 300);
+            await comparisonTerm.addLine('✅ No hang - depth limit (40) prevents infinite traversal', 'success', 300);
+            
+            btn.disabled = false;
+            document.getElementById('comparison-status').textContent = '✅ Depth limit reached - System safe!';
+            document.getElementById('comparison-status').className = 'status success';
+        });
+
+        document.getElementById('comparison-rm').addEventListener('click', async () => {
+            if (comparisonState.step < 1) {
+                alert('Create the symlink loop first!');
+                return;
+            }
+            
+            const btn = document.getElementById('comparison-rm');
+            btn.disabled = true;
+            document.getElementById('comparison-status').textContent = 'Demonstrating clean deletion...';
+            document.getElementById('comparison-status').className = 'status running';
+            
+            const w = comparisonCanvas.clientWidth;
+            const h = comparisonCanvas.clientHeight;
+            
+            await comparisonTerm.typeCommand('rm link-to-a');
+            await comparisonTerm.addLine('', 'output', 300);
+            
+            // Animate symlink disappearing
+            comparisonCtx.clearRect(0, 0, comparisonCanvas.width, comparisonCanvas.height);
+            drawDirectory(comparisonCtx, w * 0.3, h * 0.4, 'dir-a', '1000', 2, '#e6fffa');
+            drawDirectory(comparisonCtx, w * 0.7, h * 0.5, 'dir-b', '2000', 2, '#e6fffa');
+            
+            // Show symlink fading out
+            comparisonCtx.save();
+            comparisonCtx.globalAlpha = 0.3;
+            comparisonCtx.fillStyle = '#ebf8ff';
+            comparisonCtx.fillRect(w * 0.7 - 45, h * 0.7 - 25, 90, 50);
+            comparisonCtx.strokeStyle = '#4299e1';
+            comparisonCtx.lineWidth = 2;
+            comparisonCtx.setLineDash([3, 3]);
+            comparisonCtx.strokeRect(w * 0.7 - 45, h * 0.7 - 25, 90, 50);
+            comparisonCtx.setLineDash([]);
+            comparisonCtx.fillStyle = '#c53030';
+            comparisonCtx.font = 'bold 12px sans-serif';
+            comparisonCtx.textAlign = 'center';
+            comparisonCtx.fillText('DELETED', w * 0.7, h * 0.7);
+            comparisonCtx.restore();
+            
+            drawArrow(comparisonCtx, w * 0.3 + 50, h * 0.4, w * 0.7 - 50, h * 0.5, 'contains');
+            drawArrow(comparisonCtx, w * 0.7, h * 0.5 + 35, w * 0.7, h * 0.7 - 25, 'inside');
+            
+            await comparisonTerm.addLine('✅ Symlink removed successfully', 'success', 500);
+            await comparisonTerm.sleep(500);
+            
+            // Show only dir-a and dir-b remain (green, healthy)
+            comparisonCtx.clearRect(0, 0, comparisonCanvas.width, comparisonCanvas.height);
+            drawDirectory(comparisonCtx, w * 0.3, h * 0.4, 'dir-a', '1000', 2, '#c6f6d5');
+            drawDirectory(comparisonCtx, w * 0.7, h * 0.5, 'dir-b', '2000', 2, '#c6f6d5');
+            drawArrow(comparisonCtx, w * 0.3 + 50, h * 0.4, w * 0.7 - 50, h * 0.5, 'contains', '#38a169');
+            
+            // Success message
+            comparisonCtx.fillStyle = '#38a169';
+            comparisonCtx.font = 'bold 20px sans-serif';
+            comparisonCtx.textAlign = 'center';
+            comparisonCtx.fillText('✓ CLEAN DELETION', w * 0.5, h * 0.15);
+            comparisonCtx.font = '14px sans-serif';
+            comparisonCtx.fillText('dir-a and dir-b completely unaffected', w * 0.5, h * 0.2);
+            comparisonCtx.fillText('No orphaned directories, no leaks', w * 0.5, h * 0.9);
+            
+            await comparisonTerm.typeCommand('ls -l dir-a/dir-b/');
+            await comparisonTerm.addLine('(empty)', 'output', 400);
+            await comparisonTerm.addLine('', 'output', 200);
+            await comparisonTerm.typeCommand('stat dir-a | grep Links');
+            await comparisonTerm.addLine('Links: 2', 'success', 400);
+            await comparisonTerm.addLine('', 'output', 200);
+            await comparisonTerm.addLine('✅ dir-a link count unchanged', 'success', 300);
+            await comparisonTerm.addLine('✅ No circular references', 'success', 300);
+            await comparisonTerm.addLine('✅ No filesystem leak', 'success', 300);
+            
+            comparisonState.step = 2;
+            btn.disabled = false;
+            document.getElementById('comparison-status').textContent = '✅ Clean deletion - No leaks!';
+            document.getElementById('comparison-status').className = 'status success';
+        });
+
+        document.getElementById('comparison-reset').addEventListener('click', () => {
+            comparisonTerm.clear();
+            comparisonCtx.clearRect(0, 0, comparisonCanvas.width, comparisonCanvas.height);
+            drawWelcome(comparisonCtx, comparisonCanvas);
+            comparisonState = { step: 0 };
+            document.getElementById('comparison-status').textContent = 'Ready - See how symlinks handle loops';
+            document.getElementById('comparison-status').className = 'status';
+            document.getElementById('comparison-create').disabled = false;
+            document.getElementById('comparison-find').disabled = false;
+            document.getElementById('comparison-rm').disabled = false;
+        });
+
+        // Window resize handler
+        window.addEventListener('resize', () => {
+            const activeContent = document.querySelector('.tab-content.active');
+            if (activeContent) {
+                const canvas = activeContent.querySelector('canvas');
+                if (canvas) {
+                    if (canvas.id === 'loop-canvas') {
+                        loopCtx = resizeCanvas(canvas);
+                        if (loopState.step === 0) drawWelcome(loopCtx, canvas);
+                    } else if (canvas.id === 'refcount-canvas') {
+                        refcountCtx = resizeCanvas(canvas);
+                        if (refcountState.step === 0) drawWelcome(refcountCtx, canvas);
+                    } else if (canvas.id === 'comparison-canvas') {
+                        comparisonCtx = resizeCanvas(canvas);
+                        if (comparisonState.step === 0) drawWelcome(comparisonCtx, canvas);
+                    }
+                }
+            }
+        });
+    });
+    </script>
+</body>
+</html>
