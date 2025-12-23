@@ -60,7 +60,7 @@ exports.handler = async (event, context) => {
           const now = new Date();
           const today = now.toISOString().split('T')[0]; 
           const lastReset = data.lastDayReset || '';
-          const bootsToday = lastReset === today ? data.testsToday + 1 : 1; 
+          const bootsToday = lastReset === today ? data.bootsToday + 1 : 1; 
           
           transaction.update(statsRef, {
             totalBoots: admin.firestore.FieldValue.increment(1),

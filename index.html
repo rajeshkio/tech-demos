@@ -255,6 +255,22 @@
             border-color: rgba(113, 128, 150, 0.2);
         }
 
+        .visit-counter.loading span:last-child {
+            display: inline-block;
+            width: 40px;
+            height: 12px;
+            background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+            background-size: 200% 100%;
+            animation: loading-skeleton 1.5s infinite;
+            border-radius: 4px;
+            vertical-align: middle;
+        }
+
+        @keyframes loading-skeleton {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
         .visit-counter .icon {
             font-size: 0.7rem;
         }
@@ -594,72 +610,35 @@
                 'linux-hard-links': 'hardlinks-demos'
             };
 
-            // --- Fetch and display individual demo visit counts ---
-            async function fetchDemoStats() {
+            // --- Render stats to DOM ---
+            function renderStats(allStats) {
                 let totalVisits = 0;
                 
-                for (const [demoKey, collectionName] of Object.entries(demoStatsMapping)) {
-                    try {
-                        // Use the existing individual stats endpoints
-                        let endpoint = '';
-                        switch(collectionName) {
-                            case 'dns-resolutions':
-                                endpoint = 'coredns-autopath-stats';
-                                break;
-                            case 'boot-simulations':
-                                endpoint = 'boot-process-stats';
-                                break;
-                            case 'pki-lab-sessions':
-                                endpoint = 'pki-lab-stats';
-                                break;
-                            case 'portforward-sessions':
-                                endpoint = 'portforward-stats';
-                                break;
-                            case 'masquerade-simulations':
-                                endpoint = 'masquerade-nat-stats';
-                                break;
-                            case 'concurrency-runs':
-                                endpoint = 'go-concurrency-stats';
-                                break;
-                            case 'deployment-sessions':
-                                endpoint = 'deployment-stats';
-                                break;
-                            case 'hardlinks-demos':
-                                endpoint = 'hardlinks-stats';
-                                break;
-                        }
-                        
-                        if (endpoint) {
-                            const response = await fetch(`${API_BASE}/${endpoint}`);
-                            if (response.ok) {
-                                const data = await response.json();
-                                
-                                // Extract the total count based on the response structure
-                                let total = 0;
-                                if (data.totalResolutions) total = data.totalResolutions;
-                                else if (data.totalBoots) total = data.totalBoots;
-                                else if (data.totalSessions) total = data.totalSessions;
-                                else if (data.totalSimulations) total = data.totalSimulations;
-                                else if (data.totalRuns) total = data.totalRuns;
-                                else if (data.totalDemos) total = data.totalDemos;
-                                
-                                // Update counter
-                                const counterElement = document.getElementById(`counter-${demoKey}`);
-                                if (counterElement && total > 0) {
-                                    counterElement.innerHTML = `
-                                        <span class="icon">👀</span>
-                                        <span>${total.toLocaleString()}</span>
-                                    `;
-                                    counterElement.classList.remove('loading');
-                                }
-                                
-                                totalVisits += total;
-                            }
-                        }
-                    } catch (error) {
-                        console.error(`Failed to fetch stats for ${demoKey}:`, error);
+                Object.entries(allStats).forEach(([demoKey, data]) => {
+                    // Extract the total count based on the response structure
+                    let total = 0;
+                    if (data.totalResolutions) total = data.totalResolutions;
+                    else if (data.totalBoots) total = data.totalBoots;
+                    else if (data.totalSessions) total = data.totalSessions;
+                    else if (data.totalSimulations) total = data.totalSimulations;
+                    else if (data.totalRuns) total = data.totalRuns;
+                    else if (data.totalDemos) total = data.totalDemos;
+                    else if (data.totalTests) total = data.totalTests;
+                    else if (data.totalDeployments) total = data.totalDeployments;
+                    else if (data.totalSteps) total = data.totalSteps;
+                    
+                    totalVisits += total;
+                    
+                    // Update individual counter
+                    const counterElement = document.getElementById(`counter-${demoKey}`);
+                    if (counterElement && total > 0) {
+                        counterElement.innerHTML = `
+                            <span class="icon">👀</span>
+                            <span>${total.toLocaleString()}</span>
+                        `;
+                        counterElement.classList.remove('loading');
                     }
-                }
+                });
                 
                 // Update total visits counter
                 const totalVisitsElement = document.getElementById('total-visits');
@@ -671,6 +650,60 @@
                 document.querySelectorAll('.visit-counter.loading').forEach(counter => {
                     counter.style.display = 'none';
                 });
+            }
+
+            // --- Fetch and cache stats ---
+            async function fetchAndCacheStats() {
+                const CACHE_KEY = 'demo-stats-cache';
+                const CACHE_DURATION = 60000; // 1 minute
+                
+                try {
+                    const response = await fetch(`${API_BASE}/all-stats`);
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    
+                    const allStats = await response.json();
+                    
+                    // Cache the result
+                    localStorage.setItem(CACHE_KEY, JSON.stringify({
+                        data: allStats,
+                        timestamp: Date.now()
+                    }));
+                    
+                    renderStats(allStats);
+                } catch (error) {
+                    console.error('Failed to fetch stats:', error);
+                    // Hide loading counters on error
+                    document.querySelectorAll('.visit-counter.loading').forEach(counter => {
+                        counter.style.display = 'none';
+                    });
+                }
+            }
+
+            // --- Main stats loader with caching ---
+            async function fetchDemoStats() {
+                const CACHE_KEY = 'demo-stats-cache';
+                const CACHE_DURATION = 60000; // 1 minute
+                
+                // Try cache first
+                const cached = localStorage.getItem(CACHE_KEY);
+                if (cached) {
+                    try {
+                        const { data, timestamp } = JSON.parse(cached);
+                        if (Date.now() - timestamp < CACHE_DURATION) {
+                            // Use cached data immediately
+                            renderStats(data);
+                            // Fetch in background to update cache
+                            fetchAndCacheStats();
+                            return;
+                        }
+                    } catch (e) {
+                        // Invalid cache, clear it
+                        localStorage.removeItem(CACHE_KEY);
+                    }
+                }
+                
+                // No cache or expired - fetch now
+                await fetchAndCacheStats();
             }
 
             // Load stats on page load
