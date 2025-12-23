@@ -315,6 +315,35 @@
             </section>
             
             <section class="demo-grid" id="demo-grid">
+                <div class="demo-card" data-demo="linux-hard-links">
+                    <div class="visit-counter loading" id="counter-linux-hard-links">
+                        <span class="icon">👀</span>
+                        <span>...</span>
+                    </div>
+                    <div class="demo-header">
+                        <div class="demo-icon">🔗</div>
+                        <div class="demo-info">
+                            <h2>Hard Links to Directories: Why They're Forbidden</h2>
+                            <div class="demo-meta">Filesystem • Inodes • Reference Counting • Symlinks</div>
+                        </div>
+                    </div>
+                    
+                    <p class="demo-desc">
+                        Watch what happens when you try to create directory hard links. See infinite loops break filesystem traversal, reference counting cause orphaned directories, and understand why symlinks solve these problems safely.
+                    </p>
+                    
+                    <div class="demo-features">
+                        <div class="feature">🔄 Infinite loop visualization</div>
+                        <div class="feature">📊 Link count tracking</div>
+                        <div class="feature">⚠️ Filesystem leak demonstration</div>
+                        <div class="feature">✅ Symlink comparison</div>
+                    </div>
+                    
+                    <div class="demo-actions">
+                        <a href="./linux-links/" class="btn btn-primary">🎯 Try Demo</a>
+                        <a href="https://medium.com/@rk90229/linux-hard-links-explained-how-multiple-names-point-to-one-file-with-examples-4e6e5cd2685f" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">📖 Read Article</a>
+                    </div>
+                </div>
                 <div class="demo-card" data-demo="linux-boot-process">
                     <div class="visit-counter loading" id="counter-linux-boot-process">
                         <span class="icon">👀</span>
@@ -561,7 +590,8 @@
                 'self-provisioning-proxmox': 'deployment-sessions',
                 'kubectl-portforward': 'portforward-sessions',
                 'nat-masquerade': 'masquerade-simulations',
-                'go-concurrency': 'concurrency-runs'
+                'go-concurrency': 'concurrency-runs',
+                'linux-hard-links': 'hardlinks-demos'
             };
 
             // --- Fetch and display individual demo visit counts ---
@@ -594,6 +624,9 @@
                             case 'deployment-sessions':
                                 endpoint = 'deployment-stats';
                                 break;
+                            case 'hardlinks-demos':
+                                endpoint = 'hardlinks-stats';
+                                break;
                         }
                         
                         if (endpoint) {
@@ -608,6 +641,7 @@
                                 else if (data.totalSessions) total = data.totalSessions;
                                 else if (data.totalSimulations) total = data.totalSimulations;
                                 else if (data.totalRuns) total = data.totalRuns;
+                                else if (data.totalDemos) total = data.totalDemos;
                                 
                                 // Update counter
                                 const counterElement = document.getElementById(`counter-${demoKey}`);

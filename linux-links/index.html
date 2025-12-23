@@ -22,8 +22,8 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, var(--primary) 0%, #764ba2 100%);
             padding: 1.5rem;
-            height: 100vh;
-            overflow: hidden;
+            min-height: 100vh;
+            overflow-y: auto;
         }
 
         .container {
@@ -32,7 +32,7 @@
             background: #f8fafc;
             border-radius: 16px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            overflow: hidden;
+            overflow: visible;
         }
 
         .header {
@@ -40,10 +40,70 @@
             color: white;
             padding: 2rem;
             text-align: center;
+            position: relative;
         }
 
         .header h1 { font-size: 2.5rem; margin-bottom: 0.5rem; }
         .header p { font-size: 1.1rem; opacity: 0.9; }
+
+        .stats-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 0.85rem;
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .stats-badge .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stats-badge .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .stats-badge .stat-label {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stats-bar {
+            display: flex;
+            justify-content: space-around;
+            padding: 15px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            font-size: 14px;
+            color: #4a5568;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #2d3748;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            margin-top: 2px;
+        }
 
         .tabs {
             display: flex;
@@ -73,7 +133,7 @@
         .content {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            height: calc(100vh - 250px);
+            min-height: 600px;
         }
 
         .demo-panel {
@@ -221,14 +281,124 @@
             .content { grid-template-columns: 1fr; }
             .demo-panel { border-right: none; border-bottom: 1px solid #e2e8f0; }
         }
+
+        /* Usage Stats Bar */
+        .usage-stats {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 13px;
+            color: #4a5568;
+        }
+
+        .usage-stats .highlight {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        /* Footer */
+        .footer {
+            padding: 20px 30px;
+            background: #f8fafc;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .footer-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #4a5568;
+            transition: all 0.2s;
+            font-weight: 500;
+        }
+
+        .footer-link:hover {
+            background: #edf2f7;
+            color: #2d3748;
+            transform: translateY(-1px);
+        }
+
+        .footer-link.back:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .footer-link.linkedin:hover {
+            background: #0077b5;
+            color: white;
+        }
+
+        .footer-link.blog:hover {
+            background: #f56565;
+            color: white;
+        }
+
+        .footer-credits {
+            font-size: 13px;
+            color: #718096;
+        }
+
+        @media (max-width: 1024px) {
+            .footer {
+                flex-direction: column;
+                text-align: center;
+            }
+            .footer-links {
+                justify-content: center;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
+            <div class="stats-badge" id="stats-display">
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-total">-</div>
+                    <div class="stat-label">Total Demos</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="stat-today">-</div>
+                    <div class="stat-label">Today</div>
+                </div>
+            </div>
             <h1>🔗 Why Directory Hard Links Are Forbidden</h1>
-            <p>Watch what happens when you try to create cycles in the filesystem</p>
+            <p style="opacity: 0.95;">Watch what happens when you try to create cycles in the filesystem</p>
         </header>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-value" id="totalLoops">0</div>
+                <div class="stat-label">Loop Demos</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="totalRefcount">0</div>
+                <div class="stat-label">Refcount Demos</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="totalComparison">0</div>
+                <div class="stat-label">Comparison Demos</div>
+            </div>
+            <div class="stat">
+                <div class="stat-value" id="successRate">100%</div>
+                <div class="stat-label">Success Rate</div>
+            </div>
+        </div>
 
         <nav class="tabs">
             <button class="tab active" data-tab="loop">Infinite Loop Problem</button>
@@ -548,6 +718,38 @@ rm link-to-a:
                 </div>
             </section>
         </div>
+
+        <!-- Usage Stats Bar -->
+        <div class="usage-stats">
+            <span id="connectionStatus">🔄 Connecting to global stats...</span> •
+            <span class="highlight" id="globalTotalDemos">0</span> total hard links demos 
+            • <span class="highlight" id="globalDemosToday">0</span> sessions today 
+            • Last demo: <span class="highlight" id="globalLastDemo">Never</span>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-links">
+                <a href="https://demos.learningdevops.com/" class="footer-link back">
+                    ← Back to Demos
+                </a>
+                <a href="https://www.linkedin.com/in/techwith-rajesh/" class="footer-link linkedin" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+                    </svg>
+                    LinkedIn
+                </a>
+                <a href="https://medium.com/@rk90229/linux-hard-links-explained-how-multiple-names-point-to-one-file-with-examples-4e6e5cd2685f" class="footer-link blog" target="_blank">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+                    </svg>
+                    Blog Article
+                </a>
+            </div>
+            <div class="footer-credits">
+                Built with Linux • Hard Links • inode • Netlify Functions
+            </div>
+        </div>
     </div>
 
     <script>
@@ -788,6 +990,7 @@ rm link-to-a:
 
         // TAB 1: Infinite Loop Demo
         document.getElementById('loop-create').addEventListener('click', async () => {
+            trackDemo('loop'); // Track usage
             const btn = document.getElementById('loop-create');
             btn.disabled = true;
             document.getElementById('loop-status').textContent = 'Creating directory structure...';
@@ -1013,6 +1216,7 @@ rm link-to-a:
 
         // TAB 2: Reference Counting Demo
         document.getElementById('refcount-create').addEventListener('click', async () => {
+            trackDemo('refcount'); // Track usage
             const btn = document.getElementById('refcount-create');
             btn.disabled = true;
             document.getElementById('refcount-status').textContent = 'Creating circular references...';
@@ -1230,6 +1434,7 @@ rm link-to-a:
 
         // TAB 3: Comparison Demo
         document.getElementById('comparison-create').addEventListener('click', async () => {
+            trackDemo('comparison'); // Track usage
             const btn = document.getElementById('comparison-create');
             btn.disabled = true;
             document.getElementById('comparison-status').textContent = 'Creating symlink loop...';
@@ -1551,6 +1756,203 @@ rm link-to-a:
                 }
             }
         });
+    });
+
+    // --- GLOBAL STATS TRACKING ---
+    let usageStats = {
+        totalDemos: 0,
+        demosToday: 0,
+        lastDemo: null,
+        loopDemos: 0,
+        refcountDemos: 0,
+        comparisonDemos: 0
+    };
+
+    // Auto-detect Netlify function endpoint
+    const isNetlify = window.location.hostname.includes('netlify.app');
+    const API_BASE = isNetlify 
+        ? `${window.location.origin}/.netlify/functions`
+        : 'https://aesthetic-croissant-a06c3f.netlify.app/.netlify/functions';
+
+    // Fetch current stats
+    async function fetchStats() {
+        try {
+            const response = await fetch(`${API_BASE}/hardlinks-stats`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            
+            usageStats = {
+                totalDemos: data.totalDemos || 0,
+                demosToday: data.demosToday || 0,
+                lastDemo: null
+            };
+            
+            // Handle Firebase timestamp conversion
+            if (data.lastDemo) {
+                if (data.lastDemo._seconds) {
+                    usageStats.lastDemo = new Date(data.lastDemo._seconds * 1000);
+                } else if (data.lastDemo.seconds) {
+                    usageStats.lastDemo = new Date(data.lastDemo.seconds * 1000);
+                } else if (typeof data.lastDemo === 'string') {
+                    usageStats.lastDemo = new Date(data.lastDemo);
+                }
+            }
+            
+            updateUsageDisplay();
+            console.log('📡 Hard links stats loaded securely via Netlify function');
+            return true;
+        } catch (error) {
+            console.log('📱 Secure API unavailable, using localStorage fallback:', error);
+            loadLocalStats();
+            return false;
+        }
+    }
+
+    // Increment demo count
+    async function incrementStats() {
+        try {
+            const response = await fetch(`${API_BASE}/hardlinks-stats`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            
+            usageStats = {
+                totalDemos: data.totalDemos || 0,
+                demosToday: data.demosToday || 0,
+                lastDemo: null
+            };
+            
+            // Handle Firebase timestamp conversion
+            if (data.lastDemo) {
+                if (data.lastDemo._seconds) {
+                    usageStats.lastDemo = new Date(data.lastDemo._seconds * 1000);
+                } else if (data.lastDemo.seconds) {
+                    usageStats.lastDemo = new Date(data.lastDemo.seconds * 1000);
+                }
+            }
+            
+            updateUsageDisplay();
+            console.log('📡 Global hard links demo count updated securely!');
+            return true;
+        } catch (error) {
+            console.log('📱 Secure API failed, using local increment:', error);
+            incrementLocalStats();
+            return false;
+        }
+    }
+
+    // Local stats fallback
+    function loadLocalStats() {
+        const stored = localStorage.getItem('hardLinksUsageStats');
+        if (stored) {
+            usageStats = JSON.parse(stored);
+            if (usageStats.lastDemo) {
+                usageStats.lastDemo = new Date(usageStats.lastDemo);
+            }
+        } else {
+            usageStats = {
+                totalDemos: 0,
+                demosToday: 0,
+                lastDemo: null
+            };
+        }
+        updateUsageDisplay();
+    }
+
+    function incrementLocalStats() {
+        usageStats.totalDemos++;
+        usageStats.demosToday++;
+        usageStats.lastDemo = new Date();
+        localStorage.setItem('hardLinksUsageStats', JSON.stringify(usageStats));
+        updateUsageDisplay();
+    }
+
+    // Update stats display
+    function updateUsageDisplay() {
+        const elements = {
+            total: document.getElementById('stat-total'),
+            today: document.getElementById('stat-today'),
+            totalLoops: document.getElementById('totalLoops'),
+            totalRefcount: document.getElementById('totalRefcount'),
+            totalComparison: document.getElementById('totalComparison'),
+            successRate: document.getElementById('successRate'),
+            globalTotal: document.getElementById('globalTotalDemos'),
+            globalToday: document.getElementById('globalDemosToday'),
+            globalLast: document.getElementById('globalLastDemo'),
+            connectionStatus: document.getElementById('connectionStatus')
+        };
+        
+        // Update header stats
+        if (elements.total) elements.total.textContent = usageStats.totalDemos.toLocaleString();
+        if (elements.today) elements.today.textContent = usageStats.demosToday;
+        
+        // Update stats bar
+        if (elements.totalLoops) elements.totalLoops.textContent = usageStats.loopDemos || 0;
+        if (elements.totalRefcount) elements.totalRefcount.textContent = usageStats.refcountDemos || 0;
+        if (elements.totalComparison) elements.totalComparison.textContent = usageStats.comparisonDemos || 0;
+        if (elements.successRate) {
+            const total = (usageStats.loopDemos || 0) + (usageStats.refcountDemos || 0) + (usageStats.comparisonDemos || 0);
+            elements.successRate.textContent = '100%';
+        }
+        
+        // Update footer stats
+        if (elements.globalTotal) elements.globalTotal.textContent = usageStats.totalDemos.toLocaleString();
+        if (elements.globalToday) elements.globalToday.textContent = usageStats.demosToday;
+        
+        // Update connection status
+        if (elements.connectionStatus) {
+            if (API_BASE.includes('netlify')) {
+                elements.connectionStatus.innerHTML = '🔒 <strong>Secure Global Stats</strong>';
+                elements.connectionStatus.style.color = '#48bb78';
+            } else {
+                elements.connectionStatus.innerHTML = '📱 <strong>Local Mode</strong>';
+                elements.connectionStatus.style.color = '#f6e05e';
+            }
+        }
+        
+        // Update last demo time
+        if (elements.globalLast && usageStats.lastDemo && usageStats.lastDemo instanceof Date && !isNaN(usageStats.lastDemo)) {
+            const lastTime = usageStats.lastDemo;
+            const now = new Date();
+            const diffMinutes = Math.floor((now - lastTime) / 60000);
+            
+            let timeText;
+            if (diffMinutes < 1) {
+                timeText = 'Just now';
+            } else if (diffMinutes < 60) {
+                timeText = `${diffMinutes}m ago`;
+            } else if (diffMinutes < 1440) {
+                timeText = `${Math.floor(diffMinutes / 60)}h ago`;
+            } else {
+                timeText = lastTime.toLocaleDateString();
+            }
+            
+            elements.globalLast.textContent = timeText;
+        } else if (elements.globalLast) {
+            elements.globalLast.textContent = 'Never';
+        }
+    }
+
+    // Track demo usage - Updated to call incrementStats
+    async function trackDemo(tabName) {
+        // Increment tab-specific counter
+        if (tabName === 'loop') usageStats.loopDemos++;
+        else if (tabName === 'refcount') usageStats.refcountDemos++;
+        else if (tabName === 'comparison') usageStats.comparisonDemos++;
+        
+        updateUsageDisplay();
+        await incrementStats();
+    }
+
+    // Initialize stats on page load
+    fetchStats().then(() => {
+        // Periodic stats refresh
+        setInterval(async () => {
+            await fetchStats();
+        }, 30000); // Refresh every 30 seconds
     });
     </script>
 </body>
